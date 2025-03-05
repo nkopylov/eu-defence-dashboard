@@ -1,0 +1,9 @@
+{
+  "buildCommand": "DISABLE_ESLINT_PLUGIN=true CI=false next build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "devCommand": "npm run dev",
+  "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": true
+  }
+}
