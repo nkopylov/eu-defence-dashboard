@@ -33,7 +33,7 @@ The dashboard includes several visualizations:
 
 This project is deployed on Vercel. You can access the live version at:
 
-[https://defence-dashboard.vercel.app](https://defence-dashboard.vercel.app)
+[https://eu-defence-dashboard.vercel.app](https://eu-defence-dashboard.vercel.app)
 
 ## Technology Stack
 
