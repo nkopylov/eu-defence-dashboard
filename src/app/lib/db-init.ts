@@ -14,6 +14,34 @@ export async function initializeDatabase() {
     // Execute the schema SQL
     await db.queryWithPool(schemaSql);
     
+    // Check if the dependencies table has the correct columns
+    try {
+      // Try to query the dependencies table
+      await db.queryWithPool('SELECT source_ticker, target_ticker FROM dependencies LIMIT 1');
+    } catch (e) {
+      // If there's an error, the table might have old structure or not exist at all
+      console.log('Updating dependencies table structure...');
+      
+      // Drop and recreate the table with correct structure
+      await db.queryWithPool(`
+        DROP TABLE IF EXISTS dependencies CASCADE;
+        
+        CREATE TABLE IF NOT EXISTS dependencies (
+          id SERIAL PRIMARY KEY,
+          source_ticker VARCHAR(50) NOT NULL REFERENCES companies(ticker),
+          target_ticker VARCHAR(50) NOT NULL REFERENCES companies(ticker),
+          description TEXT NOT NULL,
+          value INTEGER NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (source_ticker, target_ticker)
+        );
+        
+        CREATE TRIGGER update_dependencies_timestamp BEFORE UPDATE ON dependencies
+        FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+      `);
+    }
+    
     console.log('🔵 Database schema initialized successfully');
     return { success: true };
   } catch (error) {

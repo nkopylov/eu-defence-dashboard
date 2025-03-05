@@ -148,9 +148,18 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
         
         // Just capture the initial mouse position - the positioning effect will handle the rest
         setTooltipPosition({ x: event.pageX, y: event.pageY });
+        
+        // Process link data to ensure it has the correct format
+        const linkToDisplay: NetworkLink = {
+          source: typeof d.source === 'string' ? d.source : (d.source?.id || ''),
+          target: typeof d.target === 'string' ? d.target : (d.target?.id || ''),
+          value: d.value,
+          description: d.description
+        };
+        
         setTooltipContent({ 
           type: 'link',
-          data: d
+          data: linkToDisplay
         });
         setTooltipVisible(true);
       })
@@ -373,10 +382,34 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
             <div className="text-xs">
               <p className="font-bold mb-1 text-sm">Dependency</p>
               <p className="mb-0.5 truncate">
-                <strong>From:</strong> {data.nodes.find(n => n.id === (tooltipContent.data as NetworkLink).source)?.name}
+                <strong>From:</strong> {
+                  // Try to find the source node
+                  (() => {
+                    const link = (tooltipContent.data as NetworkLink);
+                    // Check if source is already a node object
+                    if (typeof link.source !== 'string' && link.source?.name) {
+                      return link.source.name;
+                    }
+                    // Otherwise find the node by ID
+                    const sourceId = typeof link.source === 'string' ? link.source : link.source?.id;
+                    return data.nodes.find(n => n.id === sourceId)?.name || 'Unknown';
+                  })()
+                }
               </p>
               <p className="mb-0.5 truncate">
-                <strong>To:</strong> {data.nodes.find(n => n.id === (tooltipContent.data as NetworkLink).target)?.name}
+                <strong>To:</strong> {
+                  // Try to find the target node
+                  (() => {
+                    const link = (tooltipContent.data as NetworkLink);
+                    // Check if target is already a node object
+                    if (typeof link.target !== 'string' && link.target?.name) {
+                      return link.target.name;
+                    }
+                    // Otherwise find the node by ID
+                    const targetId = typeof link.target === 'string' ? link.target : link.target?.id;
+                    return data.nodes.find(n => n.id === targetId)?.name || 'Unknown';
+                  })()
+                }
               </p>
               <p className="mb-0.5">
                 <strong>Strength:</strong> {(tooltipContent.data as NetworkLink).value}/10

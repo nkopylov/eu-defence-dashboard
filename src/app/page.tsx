@@ -5,6 +5,7 @@ import type { Company, MaterialCategory, NetworkNode, DependencyNetwork } from '
 import DateRangePicker from './components/DateRangePicker';
 import CompanyCard from './components/CompanyCard';
 import DependencyGraph from './components/DependencyGraph';
+import SearchBar from './components/SearchBar';
 import { DateRange } from './types';
 import { subDays } from 'date-fns';
 import { 
@@ -12,7 +13,10 @@ import {
   getPotentialDefenseCompanies, 
   getMaterialCompanies 
 } from './services/companyService';
-import { getDependencyNetwork } from './services/networkService';
+import { 
+  getDependencyNetwork,
+  filterNetworkByNode
+} from './services/networkService';
 
 export default function Home() {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -28,7 +32,9 @@ export default function Home() {
   const [potentialCompanies, setPotentialCompanies] = useState<Company[]>([]);
   const [materialCompanies, setMaterialCompanies] = useState<Company[]>([]);
   const [dependencyData, setDependencyData] = useState<DependencyNetwork>({ nodes: [], links: [] });
+  const [filteredDependencyData, setFilteredDependencyData] = useState<DependencyNetwork>({ nodes: [], links: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [searchedNodeId, setSearchedNodeId] = useState<string | null>(null);
   
   // References for scrolling to companies
   const defenseRef = useRef<HTMLDivElement>(null);
@@ -51,6 +57,7 @@ export default function Home() {
         setPotentialCompanies(potential);
         setMaterialCompanies(materials);
         setDependencyData(network);
+        setFilteredDependencyData(network);
       } catch (error) {
         console.error('Error loading companies:', error);
       } finally {
@@ -78,23 +85,42 @@ export default function Home() {
     electronics: 'Electronics & Semiconductor Materials'
   };
 
-  // Handle node click in the network graph
-  const handleNodeClick = (node: NetworkNode) => {
-    // Set the highlighted company to the clicked node's ticker
-    setHighlightedCompany(node.ticker);
+  // Handle search results from the search bar
+  const handleSearch = (nodeId: string | null) => {
+    setSearchedNodeId(nodeId);
     
+    if (nodeId) {
+      // Filter the network data based on the searched node
+      const filtered = filterNetworkByNode(dependencyData, nodeId);
+      setFilteredDependencyData(filtered);
+      
+      // Also highlight the node
+      const node = dependencyData.nodes.find(n => n.id === nodeId);
+      if (node) {
+        setHighlightedCompany(node.ticker);
+        scrollToCompany(node.ticker);
+      }
+    } else {
+      // Reset to full network when search is cleared
+      setFilteredDependencyData(dependencyData);
+      setHighlightedCompany(null);
+    }
+  };
+
+  // Scroll to the company card in the appropriate tab
+  const scrollToCompany = (ticker: string) => {
     // Find which list this company is in
     let found = false;
     
     // Check defense companies
-    const defenseCompany = defenseCompanies.find(c => c.ticker === node.ticker);
+    const defenseCompany = defenseCompanies.find(c => c.ticker === ticker);
     if (defenseCompany) {
       setActiveTab('defense');
       found = true;
       setTimeout(() => {
         defenseRef.current?.scrollIntoView({ behavior: 'smooth' });
         // Find the specific company card and scroll to it
-        const companyElement = document.getElementById(`company-${node.ticker}`);
+        const companyElement = document.getElementById(`company-${ticker}`);
         if (companyElement) {
           companyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -103,13 +129,13 @@ export default function Home() {
     }
     
     // Check potential companies
-    const potentialCompany = potentialCompanies.find(c => c.ticker === node.ticker);
+    const potentialCompany = potentialCompanies.find(c => c.ticker === ticker);
     if (potentialCompany) {
       setActiveTab('potential');
       found = true;
       setTimeout(() => {
         potentialRef.current?.scrollIntoView({ behavior: 'smooth' });
-        const companyElement = document.getElementById(`company-${node.ticker}`);
+        const companyElement = document.getElementById(`company-${ticker}`);
         if (companyElement) {
           companyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -118,13 +144,13 @@ export default function Home() {
     }
     
     // Check material companies
-    const materialCompany = materialCompanies.find(c => c.ticker === node.ticker);
+    const materialCompany = materialCompanies.find(c => c.ticker === ticker);
     if (materialCompany) {
       setActiveTab('materials');
       found = true;
       setTimeout(() => {
         materialsRef.current?.scrollIntoView({ behavior: 'smooth' });
-        const companyElement = document.getElementById(`company-${node.ticker}`);
+        const companyElement = document.getElementById(`company-${ticker}`);
         if (companyElement) {
           companyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -139,15 +165,38 @@ export default function Home() {
     }
   };
 
+  // Handle node click in the network graph
+  const handleNodeClick = (node: NetworkNode) => {
+    // Set the highlighted company to the clicked node's ticker
+    setHighlightedCompany(node.ticker);
+    scrollToCompany(node.ticker);
+  };
+
   return (
     <div className="min-h-screen pb-10 bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
       <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-2">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Defence Industry Dashboard
             </h1>
             <DateRangePicker onChange={setDateRange} />
+          </div>
+          <div className="w-full max-w-2xl mx-auto">
+            <SearchBar 
+              nodes={dependencyData.nodes} 
+              onSearchResult={handleSearch} 
+            />
+            {searchedNodeId && (
+              <div className="mt-2 text-sm text-center">
+                <button 
+                  onClick={() => handleSearch(null)}
+                  className="text-blue-600 hover:underline"
+                >
+                  Clear filter and show full network
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -167,13 +216,20 @@ export default function Home() {
           
           {!networkCollapsed && (
             <>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                This interactive network visualizes the dependencies between defense manufacturers, suppliers, 
-                and material providers. <strong>Click on any node to view detailed company information below.</strong>
-              </p>
+              <div className="flex flex-col md:flex-row justify-between items-start mb-4">
+                <p className="text-gray-600 dark:text-gray-400">
+                  This interactive network visualizes the dependencies between defense manufacturers, suppliers, 
+                  and material providers. <strong>Click on any node to view detailed company information below.</strong>
+                </p>
+                {searchedNodeId && (
+                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-sm">
+                    Showing filtered network: connections 1 level up and 3 levels down from selected company
+                  </div>
+                )}
+              </div>
               <div className={`transition-all duration-300 ${networkCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
                 <DependencyGraph 
-                  data={dependencyData} 
+                  data={filteredDependencyData} 
                   dateRange={dateRange} 
                   onNodeClick={handleNodeClick}
                   highlightedNode={highlightedCompany}

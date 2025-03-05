@@ -266,18 +266,31 @@ export async function getDependencyNetwork(): Promise<DependencyNetwork> {
     });
     
     // Get all dependencies to build the links
-    const dependencies = await db.queryWithPool<NetworkLink>(
+    const dependencies = await db.queryWithPool<{
+      source_ticker: string;
+      target_ticker: string;
+      value: number;
+      description: string;
+    }>(
       `SELECT 
-        source_ticker as source, 
-        target_ticker as target, 
+        source_ticker, 
+        target_ticker, 
         value, 
         description
        FROM dependencies`
     );
     
+    // Format the links to match the node IDs (lowercase and replace dots with hyphens)
+    const links: NetworkLink[] = dependencies.map(dep => ({
+      source: dep.source_ticker.toLowerCase().replace('.', '-'),
+      target: dep.target_ticker.toLowerCase().replace('.', '-'),
+      value: dep.value,
+      description: dep.description
+    }));
+    
     return {
       nodes,
-      links: dependencies
+      links
     };
   } catch (error) {
     console.error('Error fetching dependency network:', error);
@@ -290,6 +303,16 @@ export async function getDependencyNetwork(): Promise<DependencyNetwork> {
  */
 export async function upsertDependency(dependency: NetworkLink): Promise<boolean> {
   try {
+    // Convert source and target to their original ticker format if they're in the node ID format
+    // (remove any transformations applied for visualization)
+    const sourceTickerOriginal = dependency.source.includes('-') ? 
+      dependency.source.replace('-', '.').toUpperCase() : 
+      dependency.source.toUpperCase();
+      
+    const targetTickerOriginal = dependency.target.includes('-') ? 
+      dependency.target.replace('-', '.').toUpperCase() : 
+      dependency.target.toUpperCase();
+    
     await db.queryWithPool(
       `INSERT INTO dependencies 
          (source_ticker, target_ticker, value, description)
@@ -299,8 +322,8 @@ export async function upsertDependency(dependency: NetworkLink): Promise<boolean
          value = $3,
          description = $4`,
       [
-        dependency.source,
-        dependency.target,
+        sourceTickerOriginal,
+        targetTickerOriginal,
         dependency.value,
         dependency.description
       ]
