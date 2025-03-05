@@ -83,6 +83,7 @@ export default function Home() {
     }
     
     // Check material companies
+    
     const materialCompany = materialCompanies.find(c => c.ticker === node.ticker);
     if (materialCompany) {
       setActiveTab('materials');

@@ -1,6 +1,6 @@
 import { StockData, DateRange } from "../types";
 
-// Function to generate random stock data for development
+// Function to generate random stock data as fallback
 function generateMockStockData(ticker: string, dateRange: DateRange): StockData[] {
   const data: StockData[] = [];
   const days = Math.ceil((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -40,15 +40,41 @@ export async function getStockData(ticker: string, dateRange: DateRange): Promis
   console.log(`Fetching data for ${ticker} from ${dateRange.startDate.toLocaleDateString()} to ${dateRange.endDate.toLocaleDateString()}`);
   
   try {
-    // For development, use mock data instead of actual API calls
-    // In a production app, you would implement a server-side API route
-    // to handle the Yahoo Finance API calls safely
-    const mockData = generateMockStockData(ticker, dateRange);
-    console.log(`Generated ${mockData.length} data points for ${ticker}`);
+    // Call our Next.js API route which safely handles the Yahoo Finance API
+    const startDateStr = dateRange.startDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    const endDateStr = dateRange.endDate.toISOString().split('T')[0];
     
-    return mockData;
+    const response = await fetch(`/api/stock?ticker=${ticker}&startDate=${startDateStr}&endDate=${endDateStr}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API error: ${errorData.error || response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success || !Array.isArray(result.data) || result.data.length === 0) {
+      throw new Error('No data returned from stock API');
+    }
+    
+    // Transform Yahoo Finance data to our StockData format
+    const stockData: StockData[] = result.data.map((item: any) => ({
+      date: new Date(item.date),
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+      volume: item.volume,
+    }));
+    
+    console.log(`Retrieved ${stockData.length} data points for ${ticker} from Yahoo Finance API`);
+    return stockData;
   } catch (error) {
-    console.error(`Error generating stock data for ${ticker}:`, error);
-    return [];
+    console.error(`Error fetching stock data for ${ticker}:`, error);
+    console.warn('Falling back to mock data');
+    
+    // Fallback to mock data if API call fails
+    const mockData = generateMockStockData(ticker, dateRange);
+    return mockData;
   }
 }
