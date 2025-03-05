@@ -58,14 +58,21 @@ export async function getStockData(ticker: string, dateRange: DateRange): Promis
     }
     
     // Transform Yahoo Finance data to our StockData format
-    const stockData: StockData[] = result.data.map((item: any) => ({
-      date: new Date(item.date),
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-      volume: item.volume,
-    }));
+    const stockData: StockData[] = result.data.map((item: any) => {
+      // Create a proper date object from the date string or date object
+      const dateObj = typeof item.date === 'string' 
+        ? new Date(item.date + 'T00:00:00Z') // Ensure proper parsing by adding time
+        : new Date(item.date);
+        
+      return {
+        date: dateObj,
+        open: Number(item.open),
+        high: Number(item.high),
+        low: Number(item.low),
+        close: Number(item.close),
+        volume: Number(item.volume),
+      };
+    });
     
     console.log(`Retrieved ${stockData.length} data points for ${ticker} from Yahoo Finance API`);
     return stockData;

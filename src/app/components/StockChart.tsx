@@ -78,20 +78,30 @@ export default function StockChart({ data, companyName, isLoading, miniVersion =
     filteredData = data.filter((_, index) => index % step === 0);
   }
   
+  // Ensure we have all valid date objects before creating chart data
+  // Convert any string dates to Date objects
+  const processedData = filteredData.map(item => ({
+    ...item,
+    date: item.date instanceof Date ? item.date : new Date(item.date)
+  }));
+  
+  // Sort data by date to ensure line connects properly
+  processedData.sort((a, b) => a.date.getTime() - b.date.getTime());
+  
   const chartData = {
-    labels: filteredData.map(item => {
-      const date = new Date(item.date);
-      return date.getDate() + '/' + (date.getMonth() + 1); // Shorter date format
+    labels: processedData.map(item => {
+      return item.date.getDate() + '/' + (item.date.getMonth() + 1); // Shorter date format
     }),
     datasets: [
       {
         label: 'Close Price',
-        data: filteredData.map(item => item.close),
+        data: processedData.map(item => item.close),
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
-        tension: 0.2,
+        // Line tension will be set globally in options
         pointRadius: 2,
         borderWidth: 2,
+        spanGaps: true // Handle any null/undefined values gracefully
       },
     ],
   };
@@ -138,6 +148,10 @@ export default function StockChart({ data, companyName, isLoading, miniVersion =
         borderWidth: 1
       }
     },
+    // This ensures we have enough points for smooth curved lines
+    cubicInterpolationMode: processedData.length >= 3 ? 'monotone' : 'default',
+    // Disable bezier curves if we don't have enough data points (prevents the error)
+    tension: processedData.length >= 3 ? 0.2 : 0,
     scales: {
       y: {
         display: !miniVersion, // Hide y axis in mini version

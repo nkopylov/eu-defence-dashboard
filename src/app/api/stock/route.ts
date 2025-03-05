@@ -25,7 +25,13 @@ export async function GET(request: NextRequest) {
       throw new Error('No data returned from Yahoo Finance API');
     }
 
-    return NextResponse.json({ success: true, data: result });
+    // Ensure consistent date format for all results
+    const formattedResult = result.map((item: any) => ({
+      ...item,
+      date: item.date.toISOString().split('T')[0] // Format as YYYY-MM-DD string
+    }));
+    
+    return NextResponse.json({ success: true, data: formattedResult });
   } catch (error) {
     console.error(`Error fetching stock data for ${ticker}:`, error);
     return NextResponse.json(
