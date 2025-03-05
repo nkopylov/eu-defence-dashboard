@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { companies } from './data/companies';
-import { potentialDefenceCompanies } from './data/potentialCompanies';
-import { materialCompanies } from './data/materialCompanies';
-import type { MaterialCategory } from './types';
+import { useState, useRef, useEffect } from 'react';
+import type { Company, MaterialCategory } from './types';
 import { dependencyNetwork, NetworkNode } from './data/dependencyNetwork';
 import DateRangePicker from './components/DateRangePicker';
 import CompanyCard from './components/CompanyCard';
 import DependencyGraph from './components/DependencyGraph';
 import { DateRange } from './types';
 import { subDays } from 'date-fns';
+import { 
+  getDefenseCompanies, 
+  getPotentialDefenseCompanies, 
+  getMaterialCompanies 
+} from './services/companyService';
 
 export default function Home() {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -21,19 +23,49 @@ export default function Home() {
   const [networkCollapsed, setNetworkCollapsed] = useState(false);
   const [highlightedCompany, setHighlightedCompany] = useState<string | null>(null);
   
+  // State for companies loaded from database
+  const [defenseCompanies, setDefenseCompanies] = useState<Company[]>([]);
+  const [potentialCompanies, setPotentialCompanies] = useState<Company[]>([]);
+  const [materialCompanies, setMaterialCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   // References for scrolling to companies
   const defenseRef = useRef<HTMLDivElement>(null);
   const potentialRef = useRef<HTMLDivElement>(null);
   const materialsRef = useRef<HTMLDivElement>(null);
   
+  // Load companies from database on mount
+  useEffect(() => {
+    async function loadCompanies() {
+      setIsLoading(true);
+      try {
+        const [defense, potential, materials] = await Promise.all([
+          getDefenseCompanies(),
+          getPotentialDefenseCompanies(),
+          getMaterialCompanies()
+        ]);
+        
+        setDefenseCompanies(defense);
+        setPotentialCompanies(potential);
+        setMaterialCompanies(materials);
+      } catch (error) {
+        console.error('Error loading companies:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadCompanies();
+  }, []);
+  
   // Group material companies by category
   const materialCompaniesByCategory = materialCompanies.reduce((acc, company) => {
-    if (!acc[company.category]) {
-      acc[company.category] = [];
+    if (!acc[company.category!]) {
+      acc[company.category!] = [];
     }
-    acc[company.category].push(company);
+    acc[company.category!].push(company);
     return acc;
-  }, {} as Record<MaterialCategory, typeof materialCompanies>);
+  }, {} as Record<MaterialCategory, Company[]>);
 
   const categoryNames: Record<MaterialCategory, string> = {
     steel: 'Steel & Metals',
@@ -52,7 +84,7 @@ export default function Home() {
     let found = false;
     
     // Check defense companies
-    const defenseCompany = companies.find(c => c.ticker === node.ticker);
+    const defenseCompany = defenseCompanies.find(c => c.ticker === node.ticker);
     if (defenseCompany) {
       setActiveTab('defense');
       found = true;
@@ -68,7 +100,7 @@ export default function Home() {
     }
     
     // Check potential companies
-    const potentialCompany = potentialDefenceCompanies.find(c => c.ticker === node.ticker);
+    const potentialCompany = potentialCompanies.find(c => c.ticker === node.ticker);
     if (potentialCompany) {
       setActiveTab('potential');
       found = true;
@@ -83,7 +115,6 @@ export default function Home() {
     }
     
     // Check material companies
-    
     const materialCompany = materialCompanies.find(c => c.ticker === node.ticker);
     if (materialCompany) {
       setActiveTab('materials');
@@ -184,53 +215,79 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Loading state */}
+        {isLoading && (
+          <div className="py-20 flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading company data...</p>
+          </div>
+        )}
+
         {/* Companies Grid for Defense and Potential tabs */}
-        {activeTab === 'defense' && (
+        {!isLoading && activeTab === 'defense' && (
           <div ref={defenseRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {companies.map((company) => (
-              <CompanyCard
-                key={company.ticker}
-                company={company}
-                dateRange={dateRange}
-                highlighted={company.ticker === highlightedCompany}
-              />
-            ))}
+            {defenseCompanies.length === 0 ? (
+              <div className="col-span-3 py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">No defense companies found. Please check database connection.</p>
+              </div>
+            ) : (
+              defenseCompanies.map((company) => (
+                <CompanyCard
+                  key={company.ticker}
+                  company={company}
+                  dateRange={dateRange}
+                  highlighted={company.ticker === highlightedCompany}
+                />
+              ))
+            )}
           </div>
         )}
         
-        {activeTab === 'potential' && (
+        {!isLoading && activeTab === 'potential' && (
           <div ref={potentialRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {potentialDefenceCompanies.map((company) => (
-              <CompanyCard
-                key={company.ticker}
-                company={company}
-                dateRange={dateRange}
-                highlighted={company.ticker === highlightedCompany}
-              />
-            ))}
+            {potentialCompanies.length === 0 ? (
+              <div className="col-span-3 py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">No potential defense companies found. Please check database connection.</p>
+              </div>
+            ) : (
+              potentialCompanies.map((company) => (
+                <CompanyCard
+                  key={company.ticker}
+                  company={company}
+                  dateRange={dateRange}
+                  highlighted={company.ticker === highlightedCompany}
+                />
+              ))
+            )}
           </div>
         )}
 
         {/* Materials Companies with Category Separators */}
-        {activeTab === 'materials' && (
+        {!isLoading && activeTab === 'materials' && (
           <div ref={materialsRef}>
-            {Object.entries(materialCompaniesByCategory).map(([category, companies]) => (
-              <div key={category} className="mb-10">
-                <h2 className="text-xl font-bold mb-4 pb-2 border-b">
-                  {categoryNames[category as MaterialCategory]}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {companies.map((company) => (
-                    <CompanyCard
-                      key={company.ticker}
-                      company={company}
-                      dateRange={dateRange}
-                      highlighted={company.ticker === highlightedCompany}
-                    />
-                  ))}
-                </div>
+            {Object.keys(materialCompaniesByCategory).length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">No material companies found. Please check database connection.</p>
               </div>
-            ))}
+            ) : (
+              Object.entries(materialCompaniesByCategory).map(([category, companies]) => (
+                <div key={category} className="mb-10">
+                  <h2 className="text-xl font-bold mb-4 pb-2 border-b">
+                    {categoryNames[category as MaterialCategory]}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {companies.map((company) => (
+                      <CompanyCard
+                        key={company.ticker}
+                        company={company}
+                        dateRange={dateRange}
+                        highlighted={company.ticker === highlightedCompany}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </main>

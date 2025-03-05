@@ -8,6 +8,9 @@ export interface Company {
   description?: string;
   category?: MaterialCategory;
   defenseUses?: string;
+  revenue?: number;
+  marketCap?: number;
+  euFundFocus?: boolean;
 }
 
 export interface StockData {
@@ -24,4 +27,4 @@ export interface DateRange {
   endDate: Date;
 }
 
-export type MaterialCategory = 'steel' | 'rareEarth' | 'explosives' | 'composites' | 'electronics';
+export type MaterialCategory = 'steel' | 'rareEarth' | 'explosives' | 'composites' | 'electronics' | 'cybersecurity' | 'missiles' | 'mobility';

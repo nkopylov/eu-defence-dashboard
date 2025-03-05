@@ -10,7 +10,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "Steel, carbon materials, high-strength alloys",
     sector: "Steel & Mining",
     category: "steel",
-    defenseUses: "Armor plating, naval vessels, military vehicles, structural elements for defense infrastructure"
+    defenseUses: "Armor plating, naval vessels, military vehicles, structural elements for defense infrastructure",
+    revenue: 68.3, // USD billions (2023)
+    marketCap: 18.5, // USD billions (Mar 2025)
+    euFundFocus: true // Strategic supplier for EU defense material needs
   },
   {
     name: "ThyssenKrupp",
@@ -19,7 +22,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "Steel, shipbuilding, industrial components",
     sector: "Steel & Engineering",
     category: "steel",
-    defenseUses: "Naval vessels, submarines, armor plating, military vehicle components"
+    defenseUses: "Naval vessels, submarines, armor plating, military vehicle components",
+    revenue: 37.5, // EUR billions (2023)
+    marketCap: 3.9, // EUR billions (Mar 2025)
+    euFundFocus: true // Key supplier for EU naval defense
   },
   {
     name: "Voestalpine",
@@ -28,7 +34,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "High-performance steels, railway systems, tool steel",
     sector: "Steel Products",
     category: "steel",
-    defenseUses: "Specialized armor plates, railway track systems for military logistics, high-strength components"
+    defenseUses: "Specialized armor plates, railway track systems for military logistics, high-strength components",
+    revenue: 16.4, // EUR billions (2023)
+    marketCap: 5.8, // EUR billions (Mar 2025)
+    euFundFocus: true // Supplier of specialized steel for EU defense applications
   },
   {
     name: "SSAB",
@@ -37,7 +46,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "High-strength steel, advanced steel solutions",
     sector: "Steel",
     category: "steel",
-    defenseUses: "Armor plating for vehicles, hardened steel for defense applications, naval shipbuilding"
+    defenseUses: "Armor plating for vehicles, hardened steel for defense applications, naval shipbuilding",
+    revenue: 9.8, // EUR billions (2023)
+    marketCap: 5.3, // EUR billions (Mar 2025)
+    euFundFocus: true // Strategic supplier for Nordic defense initiatives
   },
   {
     name: "Salzgitter AG",
@@ -46,7 +58,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "Steel products, tubes, trading",
     sector: "Steel & Technology",
     category: "steel",
-    defenseUses: "Components for military vehicles, structural elements for defense systems"
+    defenseUses: "Components for military vehicles, structural elements for defense systems",
+    revenue: 11.1, // EUR billions (2023)
+    marketCap: 1.6, // EUR billions (Mar 2025)
+    euFundFocus: false // Not a primary focus for EU defense funding
   },
 
   // Rare Earth & Critical Minerals Category
@@ -57,7 +72,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "Precious metals, battery materials, catalyst technologies",
     sector: "Materials Technology",
     category: "rareEarth",
-    defenseUses: "Critical components for electronics, guidance systems, battery technology for military applications"
+    defenseUses: "Critical components for electronics, guidance systems, battery technology for military applications",
+    revenue: 18.7, // EUR billions (2023)
+    marketCap: 4.5, // EUR billions (Mar 2025)
+    euFundFocus: true // Critical supplier for EU strategic autonomy in rare materials
   },
   {
     name: "Neo Performance Materials",
@@ -66,7 +84,10 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     products: "Rare earth processing, magnetic materials, specialty chemicals",
     sector: "Advanced Materials",
     category: "rareEarth",
-    defenseUses: "Magnets for guidance systems, specialty materials for defense electronics"
+    defenseUses: "Magnets for guidance systems, specialty materials for defense electronics",
+    revenue: 0.5, // USD billions (2023)
+    marketCap: 0.3, // USD billions (Mar 2025)
+    euFundFocus: true // Strategic for EU supply chain diversification for rare earths
   },
   {
     name: "Iluka Resources",
@@ -240,5 +261,14 @@ export const materialCompanies: (Company & { category: MaterialCategory })[] = [
     category: "electronics",
     description: "Joint venture between Thales Group and Leonardo, specializing in satellite systems and space electronics with significant defense applications.",
     defenseUses: "Satellite communications systems, space-based surveillance, military communications technology"
-  }
+  },
+  {
+    name: "Strategic Minerals Europe",
+    ticker: "PRIVATE:STRAMIN",
+    country: "Spain",
+    products: "Tin, tantalum, niobium, rare earths",
+    sector: "Mining & Processing",
+    category: "rareEarth",
+    euFundFocus: false,
+  },
 ];

@@ -52,9 +52,18 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
             {!isPublicCompany && <span className="text-xs ml-2 px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">Private</span>}
           </h3>
           {showTooltip && (
-            <div className="absolute z-10 left-0 top-8 w-72 bg-gray-100 dark:bg-gray-700 p-3 rounded shadow-lg">
+            <div className="absolute z-10 left-0 top-8 w-80 bg-gray-100 dark:bg-gray-700 p-3 rounded shadow-lg">
               <p><strong>Country:</strong> {company.country}</p>
               <p><strong>Products:</strong> {company.products}</p>
+              {company.revenue !== undefined && (
+                <p><strong>Revenue:</strong> €{company.revenue}B</p>
+              )}
+              {company.marketCap !== undefined && (
+                <p><strong>Market Cap:</strong> €{company.marketCap}B</p>
+              )}
+              {company.euFundFocus !== undefined && (
+                <p><strong>EU Fund Focus:</strong> {company.euFundFocus ? 'Yes' : 'No'}</p>
+              )}
               {company.defensePotential && (
                 <p><strong>Defense Potential:</strong> {company.defensePotential}</p>
               )}
@@ -80,6 +89,18 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
           <h4 className="font-bold text-lg mb-2">Company Profile</h4>
           <p className="mb-2"><strong>Sector:</strong> {company.sector || 'Various'}</p>
           <p className="mb-2"><strong>Key Capabilities:</strong> {company.products}</p>
+          
+          {company.revenue !== undefined && (
+            <p className="mb-2"><strong>Revenue:</strong> €{company.revenue}B</p>
+          )}
+          
+          {company.marketCap !== undefined && (
+            <p className="mb-2"><strong>Market Cap:</strong> €{company.marketCap}B</p>
+          )}
+          
+          {company.euFundFocus !== undefined && (
+            <p className="mb-2"><strong>EU Fund Focus:</strong> {company.euFundFocus ? 'Yes' : 'No'}</p>
+          )}
           
           {company.defensePotential && (
             <p className="mb-2"><strong>Defense Conversion Potential:</strong> {company.defensePotential}</p>
