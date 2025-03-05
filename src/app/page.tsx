@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { Company, MaterialCategory } from './types';
-import { dependencyNetwork, NetworkNode } from './data/dependencyNetwork';
+import type { Company, MaterialCategory, NetworkNode, DependencyNetwork } from './types';
 import DateRangePicker from './components/DateRangePicker';
 import CompanyCard from './components/CompanyCard';
 import DependencyGraph from './components/DependencyGraph';
@@ -13,6 +12,7 @@ import {
   getPotentialDefenseCompanies, 
   getMaterialCompanies 
 } from './services/companyService';
+import { getDependencyNetwork } from './services/networkService';
 
 export default function Home() {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -27,6 +27,7 @@ export default function Home() {
   const [defenseCompanies, setDefenseCompanies] = useState<Company[]>([]);
   const [potentialCompanies, setPotentialCompanies] = useState<Company[]>([]);
   const [materialCompanies, setMaterialCompanies] = useState<Company[]>([]);
+  const [dependencyData, setDependencyData] = useState<DependencyNetwork>({ nodes: [], links: [] });
   const [isLoading, setIsLoading] = useState(true);
   
   // References for scrolling to companies
@@ -39,15 +40,17 @@ export default function Home() {
     async function loadCompanies() {
       setIsLoading(true);
       try {
-        const [defense, potential, materials] = await Promise.all([
+        const [defense, potential, materials, network] = await Promise.all([
           getDefenseCompanies(),
           getPotentialDefenseCompanies(),
-          getMaterialCompanies()
+          getMaterialCompanies(),
+          getDependencyNetwork()
         ]);
         
         setDefenseCompanies(defense);
         setPotentialCompanies(potential);
         setMaterialCompanies(materials);
+        setDependencyData(network);
       } catch (error) {
         console.error('Error loading companies:', error);
       } finally {
@@ -170,7 +173,7 @@ export default function Home() {
               </p>
               <div className={`transition-all duration-300 ${networkCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
                 <DependencyGraph 
-                  data={dependencyNetwork} 
+                  data={dependencyData} 
                   dateRange={dateRange} 
                   onNodeClick={handleNodeClick}
                   highlightedNode={highlightedCompany}

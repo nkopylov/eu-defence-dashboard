@@ -2,7 +2,7 @@
 
 import * as d3 from 'd3';
 import { useEffect, useRef, useState } from 'react';
-import { DependencyNetwork, NetworkLink, NetworkNode } from '../data/dependencyNetwork';
+import { DependencyNetwork, NetworkLink, NetworkNode } from '../types';
 import { getStockData } from '../services/stockService';
 import { DateRange, StockData } from '../types';
 import StockChart from './StockChart';

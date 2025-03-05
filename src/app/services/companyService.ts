@@ -20,9 +20,7 @@ export async function getDefenseCompanies(): Promise<Company[]> {
     return data.companies;
   } catch (error) {
     console.error('Error fetching defense companies:', error);
-    // Fallback to static data if API fails
-    const { companies } = await import('../data/companies');
-    return companies;
+    throw error;
   }
 }
 
@@ -46,9 +44,7 @@ export async function getPotentialDefenseCompanies(): Promise<Company[]> {
     return data.companies;
   } catch (error) {
     console.error('Error fetching potential defense companies:', error);
-    // Fallback to static data if API fails
-    const { potentialDefenceCompanies } = await import('../data/potentialCompanies');
-    return potentialDefenceCompanies;
+    throw error;
   }
 }
 
@@ -72,9 +68,7 @@ export async function getMaterialCompanies(): Promise<Company[]> {
     return data.companies;
   } catch (error) {
     console.error('Error fetching material companies:', error);
-    // Fallback to static data if API fails
-    const { materialCompanies } = await import('../data/materialCompanies');
-    return materialCompanies;
+    throw error;
   }
 }
 
@@ -102,29 +96,7 @@ export async function getCompanyByTicker(ticker: string): Promise<Company | null
     return data.company;
   } catch (error) {
     console.error(`Error fetching company ${ticker}:`, error);
-    
-    // Fallback to static data if API fails
-    try {
-      // Try to find in defense companies
-      const { companies } = await import('../data/companies');
-      const defenseCompany = companies.find(c => c.ticker === ticker);
-      if (defenseCompany) return defenseCompany;
-      
-      // Try to find in potential companies
-      const { potentialDefenceCompanies } = await import('../data/potentialCompanies');
-      const potentialCompany = potentialDefenceCompanies.find(c => c.ticker === ticker);
-      if (potentialCompany) return potentialCompany;
-      
-      // Try to find in material companies
-      const { materialCompanies } = await import('../data/materialCompanies');
-      const materialCompany = materialCompanies.find(c => c.ticker === ticker);
-      if (materialCompany) return materialCompany;
-      
-      return null;
-    } catch (fallbackError) {
-      console.error('Error in fallback company search:', fallbackError);
-      return null;
-    }
+    return null;
   }
 }
 
@@ -152,28 +124,6 @@ export async function searchCompanies(query: string): Promise<Company[]> {
     return data.companies;
   } catch (error) {
     console.error(`Error searching companies for "${query}":`, error);
-    
-    // Fallback to searching static data if API fails
-    try {
-      const { companies } = await import('../data/companies');
-      const { potentialDefenceCompanies } = await import('../data/potentialCompanies');
-      const { materialCompanies } = await import('../data/materialCompanies');
-      
-      const allCompanies = [
-        ...companies,
-        ...potentialDefenceCompanies,
-        ...materialCompanies
-      ];
-      
-      // Simple search in name or ticker
-      const lowerQuery = query.toLowerCase();
-      return allCompanies.filter(company => 
-        company.name.toLowerCase().includes(lowerQuery) || 
-        company.ticker.toLowerCase().includes(lowerQuery)
-      ).slice(0, 10); // Limit to 10 results
-    } catch (fallbackError) {
-      console.error('Error in fallback company search:', fallbackError);
-      return [];
-    }
+    return [];
   }
 }

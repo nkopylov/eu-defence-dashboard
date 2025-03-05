@@ -59,13 +59,13 @@ CREATE TABLE IF NOT EXISTS companies (
 -- Dependencies (Supply Chain Relationships)
 CREATE TABLE IF NOT EXISTS dependencies (
   id SERIAL PRIMARY KEY,
-  source_company_id INTEGER NOT NULL REFERENCES companies(id),
-  target_company_id INTEGER NOT NULL REFERENCES companies(id),
-  relationship_type VARCHAR(100) NOT NULL, -- e.g., 'supplier', 'customer', 'partner'
-  weight INTEGER DEFAULT 1, -- For visualization thickness
+  source_ticker VARCHAR(50) NOT NULL REFERENCES companies(ticker),
+  target_ticker VARCHAR(50) NOT NULL REFERENCES companies(ticker),
+  description TEXT NOT NULL,
+  value INTEGER NOT NULL, -- Strength of dependency from 1-10
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (source_company_id, target_company_id)
+  UNIQUE (source_ticker, target_ticker)
 );
 
 -- Historical Stock Data (Optional - could be cached from Yahoo Finance)
