@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
   
   try {
-    const result = await setupDatabase();
+    await setupDatabase();
     
     return NextResponse.json({
       success: true,
