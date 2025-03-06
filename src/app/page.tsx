@@ -227,6 +227,20 @@ export default function Home() {
     }
   };
 
+  // Add a function to filter companies based on the filtered network data
+  const getFilteredCompanies = (companies: Company[]) => {
+    if (!searchedNodeId) {
+      // If no node is selected, show all companies
+      return companies;
+    }
+    
+    // Get the tickers of nodes in the filtered network
+    const filteredTickers = new Set(filteredDependencyData.nodes.map(node => node.ticker));
+    
+    // Filter companies to only include those in the filtered network
+    return companies.filter(company => filteredTickers.has(company.ticker));
+  };
+
   return (
     <div className="min-h-screen pb-10 bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
       <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
@@ -324,6 +338,24 @@ export default function Home() {
           )}
         </div>
 
+        {/* Add a message above the tabs to indicate filtering */}
+        {searchedNodeId && (
+          <div className="mb-4 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm text-blue-800 dark:text-blue-200">
+            <p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Showing only companies that are part of the filtered network. 
+              <button 
+                onClick={clearFilters}
+                className="ml-2 underline hover:text-blue-600 dark:hover:text-blue-300"
+              >
+                Clear filter
+              </button>
+            </p>
+          </div>
+        )}
+
         {/* Tabs - Below Network Graph */}
         <div className="flex flex-wrap border-b mb-6">
           <button
@@ -335,6 +367,11 @@ export default function Home() {
             onClick={() => setActiveTab('defense')}
           >
             Defense Companies
+            {searchedNodeId && (
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                {getFilteredCompanies(defenseCompanies).length}
+              </span>
+            )}
           </button>
           <button
             className={`py-2 px-4 font-medium text-sm ${
@@ -345,6 +382,11 @@ export default function Home() {
             onClick={() => setActiveTab('potential')}
           >
             Potential Defense Companies
+            {searchedNodeId && (
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                {getFilteredCompanies(potentialCompanies).length}
+              </span>
+            )}
           </button>
           <button
             className={`py-2 px-4 font-medium text-sm ${
@@ -355,6 +397,13 @@ export default function Home() {
             onClick={() => setActiveTab('materials')}
           >
             Crucial Materials
+            {searchedNodeId && (
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                {Object.values(materialCompaniesByCategory).flat().filter(company => 
+                  filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                ).length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -373,8 +422,14 @@ export default function Home() {
               <div className="col-span-3 py-10 text-center">
                 <p className="text-gray-600 dark:text-gray-400">No defense companies found. Please check database connection.</p>
               </div>
+            ) : getFilteredCompanies(defenseCompanies).length === 0 && searchedNodeId ? (
+              <div className="col-span-3 py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">
+                  No defense companies in the current filtered network view.
+                </p>
+              </div>
             ) : (
-              defenseCompanies.map((company) => (
+              getFilteredCompanies(defenseCompanies).map((company) => (
                 <CompanyCard
                   key={company.ticker}
                   company={company}
@@ -392,8 +447,14 @@ export default function Home() {
               <div className="col-span-3 py-10 text-center">
                 <p className="text-gray-600 dark:text-gray-400">No potential defense companies found. Please check database connection.</p>
               </div>
+            ) : getFilteredCompanies(potentialCompanies).length === 0 && searchedNodeId ? (
+              <div className="col-span-3 py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">
+                  No potential defense companies in the current filtered network view.
+                </p>
+              </div>
             ) : (
-              potentialCompanies.map((company) => (
+              getFilteredCompanies(potentialCompanies).map((company) => (
                 <CompanyCard
                   key={company.ticker}
                   company={company}
@@ -412,24 +473,38 @@ export default function Home() {
               <div className="py-10 text-center">
                 <p className="text-gray-600 dark:text-gray-400">No material companies found. Please check database connection.</p>
               </div>
+            ) : Object.values(materialCompaniesByCategory).flat().filter(company => 
+                filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+              ).length === 0 && searchedNodeId ? (
+              <div className="py-10 text-center">
+                <p className="text-gray-600 dark:text-gray-400">
+                  No material companies in the current filtered network view.
+                </p>
+              </div>
             ) : (
-              Object.entries(materialCompaniesByCategory).map(([category, companies]) => (
-                <div key={category} className="mb-10">
-                  <h2 className="text-xl font-bold mb-4 pb-2 border-b">
-                    {materialCategoryNames[category as MaterialCategory]}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {companies.map((company) => (
-                      <CompanyCard
-                        key={company.ticker}
-                        company={company}
-                        dateRange={dateRange}
-                        highlighted={company.ticker === highlightedCompany}
-                      />
-                    ))}
+              Object.entries(materialCompaniesByCategory).map(([category, companies]) => {
+                const filteredCompanies = getFilteredCompanies(companies);
+                // Skip categories with no companies after filtering
+                if (filteredCompanies.length === 0 && searchedNodeId) return null;
+                
+                return (
+                  <div key={category} className="mb-10">
+                    <h2 className="text-xl font-bold mb-4 pb-2 border-b">
+                      {materialCategoryNames[category as MaterialCategory]}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredCompanies.map((company) => (
+                        <CompanyCard
+                          key={company.ticker}
+                          company={company}
+                          dateRange={dateRange}
+                          highlighted={company.ticker === highlightedCompany}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
