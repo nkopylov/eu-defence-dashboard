@@ -44,6 +44,7 @@ export interface DateRange {
   startDate: Date;
   endDate: Date;
   isToday?: boolean;
+  preset?: string;
 }
 
 export type MaterialCategory = 'steel' | 'rareEarth' | 'explosives' | 'composites' | 'electronics' | 'cybersecurity' | 'missiles' | 'mobility';

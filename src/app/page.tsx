@@ -24,6 +24,7 @@ export default function Home() {
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: subDays(new Date(), 14),
     endDate: new Date(),
+    preset: '2w'
   });
   const [activeTab, setActiveTab] = useState<'defense' | 'potential' | 'materials'>('defense');
   const [networkCollapsed, setNetworkCollapsed] = useState(false);
@@ -151,17 +152,15 @@ export default function Home() {
 
   // Scroll to the company card in the appropriate tab
   const scrollToCompany = (ticker: string) => {
-    // Find which list this company is in
     let found = false;
     
     // Check defense companies
     const defenseCompany = defenseCompanies.find(c => c.ticker === ticker);
     if (defenseCompany) {
-      setActiveTab('defense');
+      handleTabChange('defense');
       found = true;
       setTimeout(() => {
         defenseRef.current?.scrollIntoView({ behavior: 'smooth' });
-        // Find the specific company card and scroll to it
         const companyElement = document.getElementById(`company-${ticker}`);
         if (companyElement) {
           companyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -173,7 +172,7 @@ export default function Home() {
     // Check potential companies
     const potentialCompany = potentialCompanies.find(c => c.ticker === ticker);
     if (potentialCompany) {
-      setActiveTab('potential');
+      handleTabChange('potential');
       found = true;
       setTimeout(() => {
         potentialRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -188,7 +187,7 @@ export default function Home() {
     // Check material companies
     const materialCompany = materialCompanies.find(c => c.ticker === ticker);
     if (materialCompany) {
-      setActiveTab('materials');
+      handleTabChange('materials');
       found = true;
       setTimeout(() => {
         materialsRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -202,7 +201,7 @@ export default function Home() {
     
     // If not found, just show all defense companies
     if (!found) {
-      setActiveTab('defense');
+      handleTabChange('defense');
       setTimeout(() => defenseRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
   };
@@ -223,8 +222,13 @@ export default function Home() {
     setUpstreamLevels(1);
     setDownstreamLevels(3);
     
-    // Clear URL parameters first
-    window.history.replaceState({}, '', window.location.pathname);
+    // Clear URL parameters but preserve timeframe and tab
+    const params = new URLSearchParams();
+    if (dateRange.preset) {
+      params.set('timeframe', dateRange.preset);
+    }
+    params.set('tab', activeTab);
+    window.history.replaceState({}, '', params.toString() ? `?${params.toString()}` : window.location.pathname);
     
     // Then reset the search state (this will not update URL again because of the null check in updateUrlParams)
     setSearchedNodeId(null);
@@ -257,11 +261,22 @@ export default function Home() {
     
     const params = new URLSearchParams();
     
+    // Add date range preset to URL if available
+    if (dateRange.preset) {
+      params.set('timeframe', dateRange.preset);
+    }
+    
+    // Add active tab to URL
+    params.set('tab', activeTab);
+    
     if (nodeId) {
       params.set('node', nodeId);
     } else {
-      // If no node is selected, clear all parameters
-      window.history.replaceState({}, '', window.location.pathname);
+      // If no node is selected, keep only the timeframe and tab parameters
+      params.delete('node');
+      params.delete('upstream');
+      params.delete('downstream');
+      window.history.replaceState({}, '', params.toString() ? `?${params.toString()}` : window.location.pathname);
       return;
     }
     
@@ -279,6 +294,36 @@ export default function Home() {
     window.history.replaceState({}, '', newUrl);
   };
 
+  // Handle date range change
+  const handleDateRangeChange = (newDateRange: DateRange) => {
+    setDateRange(newDateRange);
+    
+    // Update URL with new date range
+    const params = new URLSearchParams(window.location.search);
+    if (newDateRange.preset) {
+      params.set('timeframe', newDateRange.preset);
+    } else {
+      params.delete('timeframe');
+    }
+    
+    // Keep other parameters
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  // Handle tab change
+  const handleTabChange = (tab: 'defense' | 'potential' | 'materials') => {
+    setActiveTab(tab);
+    
+    // Update URL with new tab
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', tab);
+    
+    // Keep other parameters
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  };
+
   // Effect to initialize from URL parameters on load
   useEffect(() => {
     if (!dependencyData.nodes.length || initializedFromUrlRef.current) return; // Wait for data to be loaded and only run once
@@ -286,9 +331,76 @@ export default function Home() {
     const nodeId = searchParams.get('node');
     const upstreamParam = searchParams.get('upstream');
     const downstreamParam = searchParams.get('downstream');
+    const timeframeParam = searchParams.get('timeframe');
+    const tabParam = searchParams.get('tab');
     
-    // If no parameters, don't do anything
-    if (!nodeId && !upstreamParam && !downstreamParam) return;
+    // Set active tab from URL if present
+    if (tabParam === 'defense' || tabParam === 'potential' || tabParam === 'materials') {
+      setActiveTab(tabParam);
+    }
+    
+    // Set timeframe from URL if present
+    if (timeframeParam) {
+      // We'll set the date range based on the timeframe
+      let newDateRange: DateRange;
+      const now = new Date();
+      
+      if (timeframeParam === 'today') {
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        newDateRange = {
+          startDate: todayStart,
+          endDate: now,
+          isToday: true,
+          preset: 'today'
+        };
+      } else if (timeframeParam === '1w') {
+        newDateRange = {
+          startDate: subDays(now, 7),
+          endDate: now,
+          preset: '1w'
+        };
+      } else if (timeframeParam === '2w') {
+        newDateRange = {
+          startDate: subDays(now, 14),
+          endDate: now,
+          preset: '2w'
+        };
+      } else if (timeframeParam === '1m') {
+        newDateRange = {
+          startDate: subDays(now, 30),
+          endDate: now,
+          preset: '1m'
+        };
+      } else if (timeframeParam === '3m') {
+        newDateRange = {
+          startDate: subDays(now, 90),
+          endDate: now,
+          preset: '3m'
+        };
+      } else if (timeframeParam === '6m') {
+        newDateRange = {
+          startDate: subDays(now, 180),
+          endDate: now,
+          preset: '6m'
+        };
+      } else if (timeframeParam === 'custom') {
+        // For custom, we'll keep the default date range but mark it as custom
+        newDateRange = {
+          ...dateRange,
+          preset: 'custom'
+        };
+      } else {
+        // Default to 2 weeks if timeframe is not recognized
+        newDateRange = {
+          startDate: subDays(now, 14),
+          endDate: now,
+          preset: '2w'
+        };
+      }
+      
+      setDateRange(newDateRange);
+    }
     
     // Set network options from URL if present
     const newUpstream = upstreamParam ? parseInt(upstreamParam, 10) : 1;
@@ -341,14 +453,17 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Defence Industry Dashboard
             </h1>
-            <DateRangePicker onChange={setDateRange} />
-          </div>
-          <div className="w-full max-w-2xl mx-auto">
             <SearchBar 
-              ref={searchBarRef}
               nodes={dependencyData.nodes} 
               onSearchResult={handleSearch}
               selectedNodeId={searchedNodeId}
+              ref={searchBarRef}
+            />
+          </div>
+          <div className="flex justify-between items-center">
+            <DateRangePicker 
+              onChange={handleDateRangeChange} 
+              selectedPreset={dateRange.preset}
             />
             {searchedNodeId && (
               <div className="mt-2 text-sm text-center">
@@ -456,7 +571,7 @@ export default function Home() {
                 ? 'border-b-2 border-blue-600 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab('defense')}
+            onClick={() => handleTabChange('defense')}
           >
             Defense Companies
             {searchedNodeId && (
@@ -471,7 +586,7 @@ export default function Home() {
                 ? 'border-b-2 border-blue-600 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab('potential')}
+            onClick={() => handleTabChange('potential')}
           >
             Potential Defense Companies
             {searchedNodeId && (
@@ -486,7 +601,7 @@ export default function Home() {
                 ? 'border-b-2 border-blue-600 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab('materials')}
+            onClick={() => handleTabChange('materials')}
           >
             Crucial Materials
             {searchedNodeId && (
