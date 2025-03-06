@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Company, DateRange, StockData } from '../types';
+import { useEffect, useState } from 'react';
 import { getStockData } from '../services/stockService';
+import { Company, DateRange, StockData } from '../types';
 import StockChart from './StockChart';
 
 interface CompanyCardProps {
@@ -112,11 +112,6 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
             isLoading={isLoading}
             dateRange={dateRange}
           />
-          {stockChange !== null && (
-            <div className={`mt-2 text-lg font-bold ${getStockChangeColor()}`}>
-              {stockChange.toFixed(2)}%
-            </div>
-          )}
         </>
       ) : (
         <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-auto">
