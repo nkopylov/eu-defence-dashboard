@@ -22,8 +22,6 @@ interface SimulationNetworkLink {
   description: string;
 }
 
-// Define a type for the drag handler to avoid 'any'
-type DragHandler = d3.DragBehavior<Element, SimulationNetworkNode, SimulationNetworkNode | d3.SubjectPosition>;
 
 interface DependencyGraphProps {
   data: DependencyNetwork;

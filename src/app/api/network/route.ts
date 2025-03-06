@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getDependencyNetwork } from '@/app/lib/companies-repository';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const network = await getDependencyNetwork();
     

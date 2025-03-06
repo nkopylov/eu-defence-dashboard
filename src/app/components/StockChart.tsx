@@ -1,21 +1,20 @@
 'use client';
 
-import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
   BarElement,
-  Title,
-  Tooltip,
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
   Legend,
-  ChartOptions,
-  Filler
+  LinearScale,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip
 } from 'chart.js';
-import { StockData, DateRange } from '../types';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Line } from 'react-chartjs-2';
+import { DateRange, StockData } from '../types';
 
 ChartJS.register(
   CategoryScale,
@@ -98,7 +97,7 @@ export default function StockChart({
   
   // Ensure we have all valid date objects before creating chart data
   // Convert any string dates to Date objects
-  let processedData = filteredData.map(item => ({
+  const processedData = filteredData.map(item => ({
     ...item,
     date: item.date instanceof Date ? item.date : new Date(item.date)
   }));
@@ -305,7 +304,7 @@ export default function StockChart({
           borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
           borderWidth: 1,
           callbacks: {
-            title: function(tooltipItems) {
+            title: function() {
               return 'Today';
             },
             label: function(context) {

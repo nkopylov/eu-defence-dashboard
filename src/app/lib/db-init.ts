@@ -18,7 +18,7 @@ export async function initializeDatabase() {
     try {
       // Try to query the dependencies table
       await db.queryWithPool('SELECT source_ticker, target_ticker FROM dependencies LIMIT 1');
-    } catch (e) {
+    } catch {
       // If there's an error, the table might have old structure or not exist at all
       console.log('Updating dependencies table structure...');
       
