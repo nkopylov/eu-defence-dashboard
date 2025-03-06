@@ -51,6 +51,7 @@ export default function Home() {
   // Add router for URL manipulation
   const router = useRouter();
   const searchParams = useSearchParams();
+  const initializedFromUrlRef = useRef(false);
   
   // Load companies from database on mount
   useEffect(() => {
@@ -217,13 +218,21 @@ export default function Home() {
   const clearFilters = () => {
     // First clear the search input
     searchBarRef.current?.clearSearch();
-    // Then reset the search state
-    handleSearch(null);
+    
     // Reset network options to defaults
     setUpstreamLevels(1);
     setDownstreamLevels(3);
-    // Clear URL parameters
+    
+    // Clear URL parameters first
     window.history.replaceState({}, '', window.location.pathname);
+    
+    // Then reset the search state (this will not update URL again because of the null check in updateUrlParams)
+    setSearchedNodeId(null);
+    setFilteredDependencyData(dependencyData);
+    setHighlightedCompany(null);
+    
+    // Reset the initialization flag
+    initializedFromUrlRef.current = false;
   };
 
   // Handle settings change
@@ -243,6 +252,9 @@ export default function Home() {
 
   // Function to update URL parameters
   const updateUrlParams = (nodeId: string | null, upstream: number, downstream: number) => {
+    // Don't update URL if we're in the process of initializing from URL
+    if (!initializedFromUrlRef.current && searchParams.get('node')) return;
+    
     const params = new URLSearchParams();
     
     if (nodeId) {
@@ -269,31 +281,43 @@ export default function Home() {
 
   // Effect to initialize from URL parameters on load
   useEffect(() => {
-    if (!dependencyData.nodes.length) return; // Wait for data to be loaded
+    if (!dependencyData.nodes.length || initializedFromUrlRef.current) return; // Wait for data to be loaded and only run once
     
     const nodeId = searchParams.get('node');
     const upstreamParam = searchParams.get('upstream');
     const downstreamParam = searchParams.get('downstream');
     
+    // If no parameters, don't do anything
+    if (!nodeId && !upstreamParam && !downstreamParam) return;
+    
     // Set network options from URL if present
-    const newUpstream = upstreamParam ? parseInt(upstreamParam, 10) : upstreamLevels;
-    const newDownstream = downstreamParam ? parseInt(downstreamParam, 10) : downstreamLevels;
+    const newUpstream = upstreamParam ? parseInt(upstreamParam, 10) : 1;
+    const newDownstream = downstreamParam ? parseInt(downstreamParam, 10) : 3;
     
-    if (newUpstream !== upstreamLevels) {
-      setUpstreamLevels(newUpstream);
+    // Update levels first
+    setUpstreamLevels(newUpstream);
+    setDownstreamLevels(newDownstream);
+    
+    // Apply search if node parameter is present
+    if (nodeId) {
+      // We'll use a direct approach instead of handleSearch to avoid double URL updates
+      setSearchedNodeId(nodeId);
+      
+      // Filter the network data based on the searched node using custom levels
+      const filtered = filterNetworkByNode(dependencyData, nodeId, newUpstream, newDownstream);
+      setFilteredDependencyData(filtered);
+      
+      // Also highlight the node
+      const node = dependencyData.nodes.find(n => n.id === nodeId);
+      if (node) {
+        setHighlightedCompany(node.ticker);
+      }
     }
     
-    if (newDownstream !== downstreamLevels) {
-      setDownstreamLevels(newDownstream);
-    }
-    
-    // Apply search if node parameter is present and we haven't already applied it
-    if (nodeId && nodeId !== searchedNodeId) {
-      // Use false for shouldScroll to prevent unnecessary scrolling on initial load
-      handleSearch(nodeId, false);
-    }
-  // Only run when dependencyData or searchParams change, not when the levels change
-  }, [dependencyData, searchParams, searchedNodeId]);
+    // Mark as initialized
+    initializedFromUrlRef.current = true;
+  // Only run when dependencyData or searchParams change
+  }, [dependencyData, searchParams]);
 
   // Add a function to filter companies based on the filtered network data
   const getFilteredCompanies = (companies: Company[]) => {
