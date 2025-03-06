@@ -48,9 +48,9 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
 
   const getStockChangeColor = () => {
     if (stockChange === null) return 'text-gray-500';
-    if (stockChange > 0) return 'text-green-500';
-    if (stockChange < 0) return 'text-red-500';
-    return 'text-gray-500';
+    if (stockChange > 0) return 'text-green-700';
+    if (stockChange < 0) return 'text-red-700';
+    return 'text-gray-700';
   };
 
   const getStockChangeBackgroundColor = () => {
