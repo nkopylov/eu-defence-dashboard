@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -48,7 +48,6 @@ export default function AdminPage() {
 
   async function handleAuth() {
     try {
-      console.log('Authenticating with key:', authKey);
       const response = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: {
@@ -60,7 +59,6 @@ export default function AdminPage() {
       });
       
       const data = await response.json();
-      console.log('Auth response:', data);
       
       if (response.ok) {
         setIsAuthorized(true);

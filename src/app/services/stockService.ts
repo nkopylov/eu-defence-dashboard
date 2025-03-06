@@ -36,9 +36,6 @@ function generateMockStockData(ticker: string, dateRange: DateRange): StockData[
 }
 
 export async function getStockData(ticker: string, dateRange: DateRange): Promise<StockData[]> {
-  // Log the date range change to confirm the function is being called
-  console.log(`Fetching data for ${ticker} from ${dateRange.startDate.toLocaleDateString()} to ${dateRange.endDate.toLocaleDateString()}`);
-  
   try {
     // Call our Next.js API route which safely handles the Yahoo Finance API
     const startDateStr = dateRange.startDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
@@ -77,11 +74,9 @@ export async function getStockData(ticker: string, dateRange: DateRange): Promis
       };
     });
     
-    console.log(`Retrieved ${stockData.length} data points for ${ticker} from Yahoo Finance API`);
     return stockData;
   } catch (error) {
     console.error(`Error fetching stock data for ${ticker}:`, error);
-    console.warn('Falling back to mock data');
     
     // Fallback to mock data if API call fails
     const mockData = generateMockStockData(ticker, dateRange);

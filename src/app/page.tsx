@@ -8,13 +8,13 @@ import DependencyGraph from './components/DependencyGraph';
 import NetworkFilterSettings from './components/NetworkFilterSettings';
 import SearchBar, { SearchBarRef } from './components/SearchBar';
 import {
-    getDefenseCompanies,
-    getMaterialCompanies,
-    getPotentialDefenseCompanies
+  getDefenseCompanies,
+  getMaterialCompanies,
+  getPotentialDefenseCompanies
 } from './services/companyService';
 import {
-    filterNetworkByNode,
-    getDependencyNetwork
+  filterNetworkByNode,
+  getDependencyNetwork
 } from './services/networkService';
 import type { Company, DependencyNetwork, MaterialCategory, NetworkNode } from './types';
 import { DateRange } from './types';
@@ -200,8 +200,6 @@ export default function Home() {
 
   // Handle node click in the network graph
   const handleNodeClick = (node: NetworkNode) => {
-    // Use the search functionality but don't scroll - stay focused on the graph
-    console.log(`Node clicked: ${node.id}, applying filter with upstream=${upstreamLevels}, downstream=${downstreamLevels}`);
     handleSearch(node.id, false);
   };
 

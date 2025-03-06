@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
 
 // Function to fetch today's data (intraday if available, otherwise empty array)
 async function fetchTodayData(ticker: string) {
-  console.log(`Fetching data for ${ticker} in Today mode`);
   
   // Define the type for our stock data
   interface IntradayDataPoint {
@@ -59,10 +58,7 @@ async function fetchTodayData(ticker: string) {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   
-  console.log(`Current date for API request: ${todayStr}`);
-  
   try {
-    console.log(`Attempting to get real intraday data for ${ticker} for today (${todayStr})`);
     const chartResult = await yahooFinance.chart(ticker, {
       period1: todayStr,
       interval: '15m',
@@ -89,11 +85,6 @@ async function fetchTodayData(ticker: string) {
         })
         .filter(item => item !== null);
       
-      console.log(`Total intraday points retrieved for ${ticker}:`, processedQuotes.length);
-
-      
-      console.log(`Today's (${todayStr}) intraday points for ${ticker}:`, processedQuotes.length);
-      
       // If we have any intraday data, use it
       if (processedQuotes.length > 0) {
         formattedResult = processedQuotes.map(item => ({
@@ -106,17 +97,10 @@ async function fetchTodayData(ticker: string) {
           adjClose: item.adjClose,
           isIntraday: true
         }));
-        
-        console.log(`Using ${formattedResult.length} real intraday points for ${ticker}`);
-      } else {
-        console.log(`No intraday points for today (${todayStr}), returning empty array`);
       }
-    } else {
-      console.log(`No chart data available for ${ticker}, returning empty array`);
     }
   } catch (chartError) {
     console.error(`Could not get real intraday data:`, chartError);
-    console.log(`No intraday data available, returning empty array`);
   }
   
   return formattedResult;

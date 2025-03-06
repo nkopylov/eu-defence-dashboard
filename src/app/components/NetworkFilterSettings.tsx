@@ -27,7 +27,6 @@ export default function NetworkFilterSettings({
   }, [upstreamLevels, downstreamLevels]);
 
   const handleApply = () => {
-    console.log(`Applying new filter settings: upstream=${localUpstream}, downstream=${localDownstream}`);
     onSettingsChange(localUpstream, localDownstream);
     onClose();
   };

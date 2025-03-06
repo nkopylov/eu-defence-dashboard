@@ -83,9 +83,6 @@ export default function StockChart({
   // Determine if we're in Today mode
   const isIntraday = dateRange?.isToday === true || data.some(item => 'isIntraday' in item);
   
-  // Debug log to see how many data points we have
-  console.log(`${companyName} data points (isToday=${isIntraday}):`, data.length);
-  
   // For large datasets, trim to show only every Nth point to avoid overcrowding the chart
   const maxPoints = isIntraday ? 30 : 14; // Show more points for intraday data
   let filteredData = data;
@@ -104,9 +101,6 @@ export default function StockChart({
   
   // Sort data by date to ensure line connects properly
   processedData.sort((a, b) => a.date.getTime() - b.date.getTime());
-  
-  // Debug log after processing
-  console.log(`${companyName} processed data points:`, processedData.length);
   
   // For Today mode with a single point, we'll create a custom label
   let dateLabels;

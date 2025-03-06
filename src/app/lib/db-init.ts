@@ -20,7 +20,6 @@ export async function initializeDatabase() {
       await db.queryWithPool('SELECT source_ticker, target_ticker FROM dependencies LIMIT 1');
     } catch {
       // If there's an error, the table might have old structure or not exist at all
-      console.log('Updating dependencies table structure...');
       
       // Drop and recreate the table with correct structure
       await db.queryWithPool(`
@@ -42,7 +41,6 @@ export async function initializeDatabase() {
       `);
     }
     
-    console.log('🔵 Database schema initialized successfully');
     return { success: true };
   } catch (error) {
     console.error('❌ Failed to initialize database schema:', error);

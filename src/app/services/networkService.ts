@@ -66,8 +66,6 @@ export function filterNetworkByNode(
   upstreamLevels: number = 1,
   downstreamLevels: number = 3
 ): DependencyNetwork {
-  console.log(`Filtering network with upstreamLevels=${upstreamLevels}, downstreamLevels=${downstreamLevels}`);
-  
   if (!nodeId || !network.nodes.length) {
     return network;
   }
@@ -163,8 +161,6 @@ export function filterNetworkByNode(
     return includedNodeIds.has(sourceId) && includedNodeIds.has(targetId);
   });
 
-  console.log(`Filtered network: ${filteredNodes.length} nodes, ${filteredLinks.length} links`);
-  
   return {
     nodes: filteredNodes,
     links: filteredLinks
