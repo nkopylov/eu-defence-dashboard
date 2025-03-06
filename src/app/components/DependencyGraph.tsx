@@ -372,6 +372,7 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
                     companyName={(tooltipContent.data as NetworkNode).name}
                     isLoading={tooltipContent.isLoading || false}
                     miniVersion={true}
+                    dateRange={dateRange}
                   />
                 </div>
               )}

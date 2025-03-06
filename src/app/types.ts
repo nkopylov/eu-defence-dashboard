@@ -43,6 +43,7 @@ export interface StockData {
 export interface DateRange {
   startDate: Date;
   endDate: Date;
+  isToday?: boolean;
 }
 
 export type MaterialCategory = 'steel' | 'rareEarth' | 'explosives' | 'composites' | 'electronics' | 'cybersecurity' | 'missiles' | 'mobility';

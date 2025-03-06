@@ -82,7 +82,8 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
         <StockChart 
           data={stockData} 
           companyName={company.name} 
-          isLoading={isLoading} 
+          isLoading={isLoading}
+          dateRange={dateRange}
         />
       ) : (
         <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-auto">

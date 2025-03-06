@@ -44,7 +44,10 @@ export async function getStockData(ticker: string, dateRange: DateRange): Promis
     const startDateStr = dateRange.startDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
     const endDateStr = dateRange.endDate.toISOString().split('T')[0];
     
-    const response = await fetch(`/api/stock?ticker=${ticker}&startDate=${startDateStr}&endDate=${endDateStr}`);
+    // Append isToday flag if in today mode
+    const isTodayParam = dateRange.isToday ? `&isToday=true` : '';
+    
+    const response = await fetch(`/api/stock?ticker=${ticker}&startDate=${startDateStr}&endDate=${endDateStr}${isTodayParam}`);
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -61,7 +64,7 @@ export async function getStockData(ticker: string, dateRange: DateRange): Promis
     const stockData: StockData[] = result.data.map((item: any) => {
       // Create a proper date object from the date string or date object
       const dateObj = typeof item.date === 'string' 
-        ? new Date(item.date + 'T00:00:00Z') // Ensure proper parsing by adding time
+        ? new Date(item.date) // Use full ISO string for today mode
         : new Date(item.date);
         
       return {

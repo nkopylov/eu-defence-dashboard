@@ -7,12 +7,14 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
-  ChartOptions
+  ChartOptions,
+  Filler
 } from 'chart.js';
-import { StockData } from '../types';
+import { StockData, DateRange } from '../types';
 import { useState, useEffect } from 'react';
 
 ChartJS.register(
@@ -20,9 +22,11 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 interface StockChartProps {
@@ -30,9 +34,16 @@ interface StockChartProps {
   companyName: string;
   isLoading: boolean;
   miniVersion?: boolean;
+  dateRange?: DateRange;
 }
 
-export default function StockChart({ data, companyName, isLoading, miniVersion = false }: StockChartProps) {
+export default function StockChart({ 
+  data, 
+  companyName, 
+  isLoading, 
+  miniVersion = false, 
+  dateRange 
+}: StockChartProps) {
   // Check if dark mode is enabled
   const [isDarkMode, setIsDarkMode] = useState(false);
   
@@ -53,6 +64,7 @@ export default function StockChart({ data, companyName, isLoading, miniVersion =
     
     return () => darkModeQuery.removeEventListener('change', handleChange);
   }, []);
+  
   if (isLoading) {
     return (
       <div className="h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -69,18 +81,24 @@ export default function StockChart({ data, companyName, isLoading, miniVersion =
     );
   }
 
+  // Determine if we're in Today mode
+  const isIntraday = dateRange?.isToday === true || data.some(item => 'isIntraday' in item);
+  
+  // Debug log to see how many data points we have
+  console.log(`${companyName} data points (isToday=${isIntraday}):`, data.length);
+  
   // For large datasets, trim to show only every Nth point to avoid overcrowding the chart
-  const maxPoints = 14; // Maximum number of points to show
+  const maxPoints = isIntraday ? 30 : 14; // Show more points for intraday data
   let filteredData = data;
   
-  if (data.length > maxPoints) {
+  if (!isIntraday && data.length > maxPoints) {
     const step = Math.ceil(data.length / maxPoints);
     filteredData = data.filter((_, index) => index % step === 0);
   }
   
   // Ensure we have all valid date objects before creating chart data
   // Convert any string dates to Date objects
-  const processedData = filteredData.map(item => ({
+  let processedData = filteredData.map(item => ({
     ...item,
     date: item.date instanceof Date ? item.date : new Date(item.date)
   }));
@@ -88,118 +106,386 @@ export default function StockChart({ data, companyName, isLoading, miniVersion =
   // Sort data by date to ensure line connects properly
   processedData.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  const chartData = {
-    labels: processedData.map(item => {
-      return item.date.getDate() + '/' + (item.date.getMonth() + 1); // Shorter date format
-    }),
-    datasets: [
+  // Debug log after processing
+  console.log(`${companyName} processed data points:`, processedData.length);
+  
+  // For Today mode with a single point, we'll create a custom label
+  let dateLabels;
+  
+  if (isIntraday && processedData.length === 1) {
+    // For Today mode with single data point, create a special label
+    dateLabels = ["Today"];
+  } else if (isIntraday) {
+    // For intraday with multiple points, show the time (HH:MM)
+    dateLabels = processedData.map((item) => {
+      const date = item.date instanceof Date ? item.date : new Date(item.date);
+      // Check if we have a formattedTime property (from our API enhancement)
+      if ('formattedTime' in item && item.formattedTime) {
+        return item.formattedTime;
+      }
+      // Otherwise format the time from the date
+      return date.getHours().toString().padStart(2, '0') + ':' + 
+             date.getMinutes().toString().padStart(2, '0');
+    });
+  } else {
+    // For regular mode, show DD/MM format
+    dateLabels = processedData.map((item) => {
+      const date = item.date instanceof Date ? item.date : new Date(item.date);
+      return date.getDate() + '/' + (date.getMonth() + 1);
+    });
+  }
+  
+  // Define color schemes
+  const mainLineColor = 'rgb(53, 162, 235)';
+  const highLineColor = 'rgba(75, 192, 192, 0.8)';
+  const lowLineColor = 'rgba(255, 99, 132, 0.8)';
+  
+  // For Today mode, we need to check if we have multiple data points or just one
+  const isSinglePointToday = isIntraday && processedData.length === 1;
+  
+  let datasets;
+  
+  if (isSinglePointToday) {
+    // For Today mode with a single point (no intraday data available)
+    // We'll create a simple visualization with the closing price and high/low range
+    const dataPoint = processedData[0];
+    
+    // Calculate a range to display
+    const highValue = dataPoint.high;
+    const lowValue = dataPoint.low;
+    const closeValue = dataPoint.close;
+    
+    datasets = [
+      // Main closing price line
+      {
+        type: 'line',
+        label: 'Today\'s Price',
+        data: [closeValue],
+        borderColor: mainLineColor,
+        backgroundColor: 'rgba(53, 162, 235, 0.2)',
+        pointRadius: 8,
+        pointStyle: 'circle',
+        pointBackgroundColor: 'rgba(53, 162, 235, 0.8)',
+        borderWidth: 2
+      },
+      // High marker 
+      {
+        type: 'line',
+        label: 'High',
+        data: [highValue],
+        borderColor: highLineColor,
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        pointRadius: 6,
+        pointStyle: 'triangle',
+        rotation: 180,
+        borderWidth: 2
+      },
+      // Low marker
+      {
+        type: 'line',
+        label: 'Low',
+        data: [lowValue],
+        borderColor: lowLineColor,
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        pointRadius: 6,
+        pointStyle: 'triangle',
+        borderWidth: 2
+      }
+    ];
+  } else if (isIntraday) {
+    // Regular intraday mode with multiple points
+    datasets = [
+      // High price line
+      {
+        label: 'High Price',
+        data: processedData.map(item => item.high),
+        borderColor: highLineColor,
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        pointRadius: 1,
+        borderWidth: 1,
+        spanGaps: true,
+        yAxisID: 'y',
+        fill: false
+      },
+      // Close price line - main line
+      {
+        label: 'Price',
+        data: processedData.map(item => item.close),
+        borderColor: mainLineColor,
+        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        pointRadius: 2,
+        borderWidth: 2,
+        spanGaps: true,
+        yAxisID: 'y',
+        fill: false
+      },
+      // Low price line
+      {
+        label: 'Low Price',
+        data: processedData.map(item => item.low),
+        borderColor: lowLineColor,
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        pointRadius: 1,
+        borderWidth: 1,
+        spanGaps: true,
+        yAxisID: 'y',
+        fill: {
+          target: '-1', // Fill to the previous dataset
+          above: 'rgba(75, 192, 192, 0.05)',
+        }
+      }
+    ];
+  } else {
+    // Regular view - just close price
+    datasets = [
       {
         label: 'Close Price',
         data: processedData.map(item => item.close),
-        borderColor: 'rgb(53, 162, 235)',
+        borderColor: mainLineColor,
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
-        // Line tension will be set globally in options
         pointRadius: 2,
         borderWidth: 2,
-        spanGaps: true // Handle any null/undefined values gracefully
-      },
-    ],
+        spanGaps: true
+      }
+    ];
+  }
+  
+  const chartData = {
+    labels: dateLabels,
+    datasets: datasets
   };
 
   // Define text color based on dark mode
   const textColor = isDarkMode ? '#e5e7eb' : '#333333';
   const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   
-  // Define options based on whether this is a mini version for tooltips
-  const options: ChartOptions<'line'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: !miniVersion, // Hide legend in mini version
-        position: 'top' as const,
-        labels: {
+  // Define title based on mode
+  const chartTitle = isIntraday 
+    ? `${companyName} Stock Price - Today` 
+    : `${companyName} Stock Price`;
+  
+  // Define different options based on the mode
+  let options;
+  
+  if (isSinglePointToday) {
+    // Special options for Today mode with single data point
+    options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: !miniVersion,
+          position: 'top' as const,
+          labels: {
+            color: textColor,
+            font: {
+              size: miniVersion ? 8 : 11
+            },
+            boxWidth: 10
+          }
+        },
+        title: {
+          display: !miniVersion,
+          text: chartTitle,
           color: textColor,
           font: {
-            size: miniVersion ? 8 : 11 // Smaller font for mini display
+            size: 12,
+            weight: 'bold'
           },
-          boxWidth: 10
-        }
-      },
-      title: {
-        display: !miniVersion, // Hide title in mini version
-        text: `${companyName} Stock Price`,
-        color: textColor,
-        font: {
-          size: 12, // Smaller title for compact display
-          weight: 'bold'
+          padding: {
+            top: 2,
+            bottom: 6
+          }
         },
-        padding: {
-          top: 2,
-          bottom: 6
+        tooltip: {
+          enabled: !miniVersion,
+          backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          titleColor: textColor,
+          bodyColor: textColor,
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
+          callbacks: {
+            title: function(tooltipItems) {
+              return 'Today';
+            },
+            label: function(context) {
+              const dataPoint = processedData[0];
+              switch(context.datasetIndex) {
+                case 0: return `Current: ${dataPoint.close.toFixed(2)}`;
+                case 1: return `High: ${dataPoint.high.toFixed(2)}`;
+                case 2: return `Low: ${dataPoint.low.toFixed(2)}`;
+                default: return '';
+              }
+            }
+          }
         }
       },
-      tooltip: {
-        enabled: !miniVersion, // Disable tooltips in mini version
-        backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        titleColor: textColor,
-        bodyColor: textColor,
-        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-        borderWidth: 1
+      scales: {
+        y: {
+          display: !miniVersion,
+          beginAtZero: false,
+          ticks: {
+            color: textColor,
+            font: {
+              size: 10
+            },
+            display: !miniVersion
+          },
+          grid: {
+            color: gridColor,
+            display: !miniVersion
+          },
+          border: {
+            color: textColor
+          }
+        },
+        x: {
+          display: !miniVersion,
+          ticks: {
+            color: textColor,
+            font: {
+              size: 11,
+              weight: 'bold'
+            },
+            display: !miniVersion
+          },
+          grid: {
+            display: false
+          },
+          border: {
+            color: textColor
+          }
+        }
+      },
+      animation: {
+        duration: 500
       }
-    },
-    // This ensures we have enough points for smooth curved lines
-    cubicInterpolationMode: processedData.length >= 3 ? 'monotone' : 'default',
-    // Disable bezier curves if we don't have enough data points (prevents the error)
-    tension: processedData.length >= 3 ? 0.2 : 0,
-    scales: {
-      y: {
-        display: !miniVersion, // Hide y axis in mini version
-        beginAtZero: false,
-        ticks: {
+    };
+  } else {
+    // Options for regular line chart (both daily and intraday with multiple points)
+    options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: !miniVersion && (!isIntraday || (isIntraday && !miniVersion)),
+          position: 'top' as const,
+          labels: {
+            color: textColor,
+            font: {
+              size: miniVersion ? 8 : 11
+            },
+            boxWidth: 10
+          }
+        },
+        title: {
+          display: !miniVersion,
+          text: chartTitle,
           color: textColor,
           font: {
-            size: 10 // Small font for scale
+            size: 12,
+            weight: 'bold'
           },
-          display: !miniVersion
+          padding: {
+            top: 2,
+            bottom: 6
+          }
         },
-        grid: {
-          color: gridColor, // Subtle grid lines
-          display: !miniVersion
-        },
-        border: {
-          color: textColor
+        tooltip: {
+          enabled: !miniVersion,
+          backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          titleColor: textColor,
+          bodyColor: textColor,
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
+          callbacks: {
+            title: function(tooltipItems) {
+              const item = tooltipItems[0];
+              const dataPoint = processedData[item.dataIndex];
+              
+              if (isIntraday) {
+                // For intraday, show both date and time
+                const date = dataPoint.date;
+                const formattedDate = date.toLocaleDateString();
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                
+                // Use formattedTime if available, otherwise format from date
+                const timeStr = 'formattedTime' in dataPoint && dataPoint.formattedTime 
+                  ? dataPoint.formattedTime 
+                  : `${hours}:${minutes}`;
+                  
+                return `${formattedDate} ${timeStr}`;
+              } else {
+                // For regular mode, just show the date
+                return dataPoint.date.toLocaleDateString();
+              }
+            }
+          }
         }
       },
-      x: {
-        display: !miniVersion, // Hide x axis in mini version
-        ticks: {
-          color: textColor,
-          font: {
-            size: 9 // Small font for scale
+      // This ensures we have enough points for smooth curved lines
+      cubicInterpolationMode: processedData.length >= 3 ? 'monotone' : 'default',
+      // Disable bezier curves if we don't have enough data points (prevents the error)
+      tension: processedData.length >= 3 ? 0.2 : 0,
+      scales: {
+        y: {
+          display: !miniVersion,
+          beginAtZero: false,
+          ticks: {
+            color: textColor,
+            font: {
+              size: 10
+            },
+            display: !miniVersion
           },
-          maxRotation: 45,
-          minRotation: 45,
-          display: !miniVersion
+          grid: {
+            color: gridColor,
+            display: !miniVersion
+          },
+          border: {
+            color: textColor
+          }
         },
-        grid: {
-          display: false // No vertical grid lines
-        },
-        border: {
-          color: textColor
+        x: {
+          display: !miniVersion,
+          ticks: {
+            color: textColor,
+            font: {
+              size: 9
+            },
+            maxRotation: 45,
+            minRotation: 45,
+            display: !miniVersion,
+            autoSkip: true,
+            maxTicksLimit: isIntraday ? 8 : 14,
+          },
+          grid: {
+            display: false
+          },
+          border: {
+            color: textColor
+          }
         }
-      }
-    },
-    elements: {
-      point: {
-        radius: miniVersion ? 0 : 2, // No points in mini version
-        hoverRadius: miniVersion ? 0 : 3
       },
-      line: {
-        borderWidth: miniVersion ? 1.5 : 2
+      elements: {
+        point: {
+          radius: miniVersion ? 0 : (isIntraday ? 1 : 2),
+          hoverRadius: miniVersion ? 0 : (isIntraday ? 2 : 3)
+        },
+        line: {
+          borderWidth: miniVersion ? 1.5 : (isIntraday ? 1.5 : 2)
+        }
+      },
+      animation: {
+        duration: 300
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false
       }
-    }
-  };
+    };
+  }
 
   return (
     <div className={miniVersion ? "h-full w-full" : "h-64"}>
