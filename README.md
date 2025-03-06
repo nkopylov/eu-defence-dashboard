@@ -1,8 +1,11 @@
-# Defence Industry Dashboard
+# Defence Industry Dashboard developed by AI
 
 An interactive dashboard for tracking and analyzing European defense industry companies, their supply chains, and crucial material providers. The dashboard provides visualizations of stock performance and industry relationships.
 
 ![Defence Industry Dashboard](public/dashboard-screenshot.png)
+
+The initial analysis is performed by ChatGPT in a research mode. The list of companies and it's interdependencies is done by ChatGPT.
+Coding is done by Claude Code and Github Copilot Agent.
 
 ## Features
 
