@@ -48,8 +48,8 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
 
   const getStockChangeColor = () => {
     if (stockChange === null) return 'text-gray-500';
-    if (stockChange > 0) return 'text-green-500';
-    if (stockChange < 0) return 'text-red-500';
+    if (stockChange > 0) return 'text-green-700';
+    if (stockChange < 0) return 'text-red-700';
     return 'text-gray-500';
   };
 
@@ -147,14 +147,6 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
           {company.description && (
             <p className="text-sm mt-2">{company.description}</p>
           )}
-        </div>
-      )}
-
-      {stockChange !== null && (
-        <div 
-          className={`absolute bottom-2 right-2 px-2 py-1 rounded-full text-sm font-bold ${getStockChangeBackgroundColor()} ${getStockChangeColor()}`}
-        >
-          {stockChange.toFixed(2)}%
         </div>
       )}
     </div>
