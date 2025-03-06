@@ -1,18 +1,42 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { NetworkNode } from '../types';
 
 interface SearchBarProps {
   nodes: NetworkNode[];
   onSearchResult: (nodeId: string | null) => void;
+  selectedNodeId?: string | null;
 }
 
-export default function SearchBar({ nodes, onSearchResult }: SearchBarProps) {
+export interface SearchBarRef {
+  clearSearch: () => void;
+}
+
+const SearchBar = forwardRef<SearchBarRef, SearchBarProps>(({ nodes, onSearchResult, selectedNodeId }, ref) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<NetworkNode[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Update the search query when the selected node changes
+  useEffect(() => {
+    if (selectedNodeId) {
+      const selectedNode = nodes.find(node => node.id === selectedNodeId);
+      if (selectedNode) {
+        setSearchQuery(selectedNode.name);
+      }
+    }
+  }, [selectedNodeId, nodes]);
+
+  // Expose clearSearch method to parent component
+  useImperativeHandle(ref, () => ({
+    clearSearch: () => {
+      setSearchQuery('');
+      setResults([]);
+      setShowResults(false);
+    }
+  }));
 
   // Filter nodes based on search query
   useEffect(() => {
@@ -55,7 +79,6 @@ export default function SearchBar({ nodes, onSearchResult }: SearchBarProps) {
 
   const handleSelectNode = (nodeId: string) => {
     onSearchResult(nodeId);
-    setSearchQuery('');
     setResults([]);
     setShowResults(false);
   };
@@ -117,4 +140,8 @@ export default function SearchBar({ nodes, onSearchResult }: SearchBarProps) {
       )}
     </div>
   );
-}
+});
+
+SearchBar.displayName = 'SearchBar';
+
+export default SearchBar;

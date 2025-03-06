@@ -1,4 +1,4 @@
-import { StockData, DateRange } from "../types";
+import { DateRange, StockData } from "../types";
 
 // Function to generate random stock data as fallback
 function generateMockStockData(ticker: string, dateRange: DateRange): StockData[] {

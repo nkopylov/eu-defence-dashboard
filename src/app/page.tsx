@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import type { Company, MaterialCategory, NetworkNode, DependencyNetwork } from './types';
-import DateRangePicker from './components/DateRangePicker';
-import CompanyCard from './components/CompanyCard';
-import DependencyGraph from './components/DependencyGraph';
-import SearchBar from './components/SearchBar';
-import { DateRange } from './types';
 import { subDays } from 'date-fns';
-import { 
-  getDefenseCompanies, 
-  getPotentialDefenseCompanies, 
-  getMaterialCompanies 
+import { useEffect, useRef, useState } from 'react';
+import CompanyCard from './components/CompanyCard';
+import DateRangePicker from './components/DateRangePicker';
+import DependencyGraph from './components/DependencyGraph';
+import NetworkFilterSettings from './components/NetworkFilterSettings';
+import SearchBar, { SearchBarRef } from './components/SearchBar';
+import {
+    getDefenseCompanies,
+    getMaterialCompanies,
+    getPotentialDefenseCompanies
 } from './services/companyService';
-import { 
-  getDependencyNetwork,
-  filterNetworkByNode
+import {
+    filterNetworkByNode,
+    getDependencyNetwork
 } from './services/networkService';
+import type { Company, DependencyNetwork, MaterialCategory, NetworkNode } from './types';
+import { DateRange } from './types';
 
 export default function Home() {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -40,6 +41,11 @@ export default function Home() {
   const defenseRef = useRef<HTMLDivElement>(null);
   const potentialRef = useRef<HTMLDivElement>(null);
   const materialsRef = useRef<HTMLDivElement>(null);
+  
+  // Add network filter settings state
+  const [upstreamLevels, setUpstreamLevels] = useState(1);
+  const [downstreamLevels, setDownstreamLevels] = useState(3);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Load companies from database on mount
   useEffect(() => {
@@ -68,6 +74,26 @@ export default function Home() {
     loadCompanies();
   }, []);
   
+  // Load settings from local storage on initial render
+  useEffect(() => {
+    const savedUpstream = localStorage.getItem('networkFilterUpstreamLevels');
+    const savedDownstream = localStorage.getItem('networkFilterDownstreamLevels');
+    
+    if (savedUpstream) {
+      setUpstreamLevels(parseInt(savedUpstream));
+    }
+    
+    if (savedDownstream) {
+      setDownstreamLevels(parseInt(savedDownstream));
+    }
+  }, []);
+  
+  // Save settings to local storage when they change
+  useEffect(() => {
+    localStorage.setItem('networkFilterUpstreamLevels', upstreamLevels.toString());
+    localStorage.setItem('networkFilterDownstreamLevels', downstreamLevels.toString());
+  }, [upstreamLevels, downstreamLevels]);
+  
   // Group material companies by category
   const materialCompaniesByCategory = materialCompanies.reduce((acc, company) => {
     if (!acc[company.category!]) {
@@ -77,28 +103,35 @@ export default function Home() {
     return acc;
   }, {} as Record<MaterialCategory, Company[]>);
 
-  const categoryNames: Record<MaterialCategory, string> = {
-    steel: 'Steel & Metals',
-    rareEarth: 'Rare Earth & Critical Minerals',
-    explosives: 'Explosives & Chemicals',
-    composites: 'Advanced Composites & Materials',
-    electronics: 'Electronics & Semiconductor Materials'
+  // Material category display names
+  const materialCategoryNames: Record<MaterialCategory, string> = {
+    steel: 'Steel & Metal Alloys',
+    rareEarth: 'Rare Earth & Critical Materials',
+    explosives: 'Explosives & Propellants',
+    composites: 'Advanced Composites',
+    electronics: 'Electronics & Semiconductor Materials',
+    cybersecurity: 'Cybersecurity & Defense IT',
+    missiles: 'Missile Systems',
+    mobility: 'Mobility & Transport Systems'
   };
 
-  // Handle search results from the search bar
-  const handleSearch = (nodeId: string | null) => {
+  // Update handleSearch to use the custom levels
+  const handleSearch = (nodeId: string | null, shouldScroll: boolean = true) => {
     setSearchedNodeId(nodeId);
     
     if (nodeId) {
-      // Filter the network data based on the searched node
-      const filtered = filterNetworkByNode(dependencyData, nodeId);
+      // Filter the network data based on the searched node using custom levels
+      const filtered = filterNetworkByNode(dependencyData, nodeId, upstreamLevels, downstreamLevels);
       setFilteredDependencyData(filtered);
       
       // Also highlight the node
       const node = dependencyData.nodes.find(n => n.id === nodeId);
       if (node) {
         setHighlightedCompany(node.ticker);
-        scrollToCompany(node.ticker);
+        // Only scroll if explicitly requested
+        if (shouldScroll) {
+          scrollToCompany(node.ticker);
+        }
       }
     } else {
       // Reset to full network when search is cleared
@@ -167,9 +200,31 @@ export default function Home() {
 
   // Handle node click in the network graph
   const handleNodeClick = (node: NetworkNode) => {
-    // Set the highlighted company to the clicked node's ticker
-    setHighlightedCompany(node.ticker);
-    scrollToCompany(node.ticker);
+    // Use the search functionality but don't scroll - stay focused on the graph
+    console.log(`Node clicked: ${node.id}, applying filter with upstream=${upstreamLevels}, downstream=${downstreamLevels}`);
+    handleSearch(node.id, false);
+  };
+
+  const searchBarRef = useRef<SearchBarRef>(null);
+
+  // Function to clear search and reset filters
+  const clearFilters = () => {
+    // First clear the search input
+    searchBarRef.current?.clearSearch();
+    // Then reset the search state
+    handleSearch(null);
+  };
+
+  // Handle settings change
+  const handleSettingsChange = (newUpstream: number, newDownstream: number) => {
+    setUpstreamLevels(newUpstream);
+    setDownstreamLevels(newDownstream);
+    
+    // Re-apply filter with new settings if a node is selected
+    if (searchedNodeId) {
+      const filtered = filterNetworkByNode(dependencyData, searchedNodeId, newUpstream, newDownstream);
+      setFilteredDependencyData(filtered);
+    }
   };
 
   return (
@@ -184,13 +239,15 @@ export default function Home() {
           </div>
           <div className="w-full max-w-2xl mx-auto">
             <SearchBar 
+              ref={searchBarRef}
               nodes={dependencyData.nodes} 
-              onSearchResult={handleSearch} 
+              onSearchResult={handleSearch}
+              selectedNodeId={searchedNodeId}
             />
             {searchedNodeId && (
               <div className="mt-2 text-sm text-center">
                 <button 
-                  onClick={() => handleSearch(null)}
+                  onClick={clearFilters}
                   className="text-blue-600 hover:underline"
                 >
                   Clear filter and show full network
@@ -222,8 +279,35 @@ export default function Home() {
                   and material providers. <strong>Click on any node to view detailed company information below.</strong>
                 </p>
                 {searchedNodeId && (
-                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-sm">
-                    Showing filtered network: connections 1 level up and 3 levels down from selected company
+                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-sm flex items-center relative">
+                    <span>
+                      Showing filtered network: connections {upstreamLevels} level{upstreamLevels > 1 ? 's' : ''} up and {downstreamLevels} level{downstreamLevels > 1 ? 's' : ''} down from selected company
+                    </span>
+                    <div className="flex items-center ml-2">
+                      <button 
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full"
+                        title="Filter Settings"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={clearFilters}
+                        className="ml-2 px-2 py-0.5 bg-blue-200 dark:bg-blue-800 rounded hover:bg-blue-300 dark:hover:bg-blue-700 transition"
+                      >
+                        Reset
+                      </button>
+                      <NetworkFilterSettings 
+                        isOpen={isSettingsOpen}
+                        onClose={() => setIsSettingsOpen(false)}
+                        upstreamLevels={upstreamLevels}
+                        downstreamLevels={downstreamLevels}
+                        onSettingsChange={handleSettingsChange}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -332,7 +416,7 @@ export default function Home() {
               Object.entries(materialCompaniesByCategory).map(([category, companies]) => (
                 <div key={category} className="mb-10">
                   <h2 className="text-xl font-bold mb-4 pb-2 border-b">
-                    {categoryNames[category as MaterialCategory]}
+                    {materialCategoryNames[category as MaterialCategory]}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {companies.map((company) => (

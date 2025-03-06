@@ -2,9 +2,8 @@
 
 import * as d3 from 'd3';
 import { useEffect, useRef, useState } from 'react';
-import { DependencyNetwork, NetworkLink, NetworkNode } from '../types';
 import { getStockData } from '../services/stockService';
-import { DateRange, StockData } from '../types';
+import { DateRange, DependencyNetwork, NetworkLink, NetworkNode, StockData } from '../types';
 import StockChart from './StockChart';
 
 // Extend NetworkNode to include D3 simulation properties
@@ -176,19 +175,24 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
       .selectAll("g")
       .data(data.nodes)
       .join("g")
-      .attr("class", d => `node ${d.type}${highlightedNode === d.id ? ' highlighted' : ''}`)
-      .call(drag(simulation) as DragHandler) // Use the proper type
+      .attr("class", d => `node ${d.type}${highlightedNode === d.ticker ? ' highlighted' : ''}`)
+      .call(drag(simulation) as any) // Use type assertion to avoid complex typing issues
       .on("click", (event, d) => {
         if (onNodeClick) onNodeClick(d);
       });
 
     // Add circles for the nodes
     node.append("circle")
-      .attr("r", d => (4 - d.level) * 5) // Size based on level (bigger for higher-level nodes)
+      .attr("r", d => {
+        // Make highlighted nodes larger
+        const baseSize = (4 - d.level) * 5; // Base size based on level
+        return highlightedNode === d.ticker ? baseSize * 1.3 : baseSize; // 30% larger for highlighted node
+      })
       .attr("fill", d => nodeColors[d.type as keyof typeof nodeColors])
-      .attr("stroke", d => d.ticker === highlightedNode ? "#ff9800" : "#fff") // Orange border for highlighted node
-      .attr("stroke-width", d => d.ticker === highlightedNode ? 3 : 1.5) // Thicker border for highlighted node
-      .attr("class", "filter-none cursor-pointer") // Ensure visibility in dark mode and show cursor pointer
+      .attr("stroke", d => highlightedNode === d.ticker ? "#ff9800" : "#fff") // Orange border for highlighted node
+      .attr("stroke-width", d => highlightedNode === d.ticker ? 3 : 1.5) // Thicker border for highlighted node
+      .attr("filter", d => highlightedNode === d.ticker ? "drop-shadow(0 0 5px rgba(255, 152, 0, 0.7))" : "none") // Add glow effect to highlighted node
+      .attr("class", "filter-none cursor-pointer"); // Ensure visibility in dark mode and show cursor pointer
 
     // Add labels for the nodes
     node.append("text")
@@ -202,10 +206,54 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
 
     // Handle node events
     node.on("mouseover", async function(event, d) {
+      // Highlight the hovered node
       d3.select(this).select("circle")
         .attr("stroke", "#ffffff")
         .attr("stroke-width", 3)
         .attr("filter", "brightness(1.2)");
+      
+      // Find connected nodes and links
+      const connectedNodeIds = new Set<string>();
+      const connectedLinks = new Set<string>();
+      
+      // Add the current node
+      connectedNodeIds.add(d.id);
+      
+      // Find all links connected to this node
+      data.links.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        
+        // If this node is either the source or target of the link
+        if (sourceId === d.id || targetId === d.id) {
+          // Add the connected node to our set
+          if (sourceId === d.id) {
+            connectedNodeIds.add(targetId);
+          } else {
+            connectedNodeIds.add(sourceId);
+          }
+          
+          // Add the link to our set
+          connectedLinks.add(`${sourceId}-${targetId}`);
+        }
+      });
+      
+      // Highlight all connected nodes
+      node.filter(node => connectedNodeIds.has(node.id) && node.id !== d.id)
+        .select("circle")
+        .attr("stroke", "#ffcc00")
+        .attr("stroke-width", 2)
+        .attr("filter", "brightness(1.1)");
+      
+      // Highlight all connected links
+      link.filter(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        return connectedLinks.has(`${sourceId}-${targetId}`);
+      })
+        .attr("stroke", "#ffcc00")
+        .attr("stroke-opacity", 1)
+        .attr("stroke-width", l => Math.sqrt(l.value) * 2);
       
       // Just capture the initial mouse position - the positioning effect will handle the rest
       setTooltipPosition({ x: event.pageX, y: event.pageY });
@@ -235,11 +283,24 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
         setTooltipVisible(true);
       }
     })
-    .on("mouseout", function() {
+    .on("mouseout", function(event, d) {
+      // Reset the hovered node
       d3.select(this).select("circle")
-        .attr("stroke", "#fff")
-        .attr("stroke-width", 1.5)
-        .attr("filter", "none");
+        .attr("stroke", highlightedNode === d.ticker ? "#ff9800" : "#fff")
+        .attr("stroke-width", highlightedNode === d.ticker ? 3 : 1.5)
+        .attr("filter", highlightedNode === d.ticker ? "drop-shadow(0 0 5px rgba(255, 152, 0, 0.7))" : "none");
+      
+      // Reset all nodes to their default state
+      node.select("circle")
+        .attr("stroke", n => highlightedNode === n.ticker ? "#ff9800" : "#fff")
+        .attr("stroke-width", n => highlightedNode === n.ticker ? 3 : 1.5)
+        .attr("filter", n => highlightedNode === n.ticker ? "drop-shadow(0 0 5px rgba(255, 152, 0, 0.7))" : "none");
+      
+      // Reset all links to their default state
+      link
+        .attr("stroke", "var(--text-color, #999)")
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-width", l => Math.sqrt(l.value) * 1.5);
       
       setTooltipVisible(false);
     });

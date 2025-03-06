@@ -1,4 +1,4 @@
-import { DependencyNetwork, NetworkNode, NetworkLink } from '../types';
+import { DependencyNetwork, NetworkNode } from '../types';
 
 /**
  * Fetch supply chain network data from the API
@@ -54,13 +54,20 @@ export async function getNetworkNode(id: string): Promise<NetworkNode | null> {
 
 /**
  * Filter the network to show only connections related to a specific node
- * - Up to 1 level upstream (who the node provides to)
- * - Up to 3 levels downstream (who provides to the node)
+ * @param network The full network data
+ * @param nodeId The ID of the node to filter around
+ * @param upstreamLevels Number of levels upstream (who the node provides to)
+ * @param downstreamLevels Number of levels downstream (who provides to the node)
+ * @returns Filtered network
  */
 export function filterNetworkByNode(
   network: DependencyNetwork,
-  nodeId: string
+  nodeId: string,
+  upstreamLevels: number = 1,
+  downstreamLevels: number = 3
 ): DependencyNetwork {
+  console.log(`Filtering network with upstreamLevels=${upstreamLevels}, downstreamLevels=${downstreamLevels}`);
+  
   if (!nodeId || !network.nodes.length) {
     return network;
   }
@@ -78,22 +85,36 @@ export function filterNetworkByNode(
   // Track nodes we've already processed to avoid infinite loops
   const processedNodes = new Set<string>();
 
-  // Find upstream connections (nodes that our target node provides to)
-  // These are links where our node is the source
-  network.links.forEach(link => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-
-    // If our node is providing to someone (1 level up)
-    if (sourceId === nodeId) {
-      includedNodeIds.add(targetId);
+  // Recursive function to find upstream connections up to a certain depth
+  function findUpstream(currentNodeId: string, currentDepth: number, maxDepth: number) {
+    // Stop if we've reached the max depth or if we've already processed this node
+    if (currentDepth >= maxDepth || processedNodes.has(currentNodeId)) {
+      return;
     }
-  });
+
+    // Mark this node as processed to avoid cycles
+    processedNodes.add(currentNodeId);
+    
+    // Find all links where this node is the source
+    // These are nodes that our current node provides to
+    network.links.forEach(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+
+      // If our current node is providing to someone
+      if (sourceId === currentNodeId) {
+        // Add the target to our included nodes
+        includedNodeIds.add(targetId);
+        // Recursively find targets of this target
+        findUpstream(targetId, currentDepth + 1, maxDepth);
+      }
+    });
+  }
 
   // Recursive function to find downstream connections up to a certain depth
   function findDownstream(currentNodeId: string, currentDepth: number, maxDepth: number) {
     // Stop if we've reached the max depth or if we've already processed this node
-    if (currentDepth > maxDepth || processedNodes.has(currentNodeId)) {
+    if (currentDepth >= maxDepth || processedNodes.has(currentNodeId)) {
       return;
     }
 
@@ -116,8 +137,21 @@ export function filterNetworkByNode(
     });
   }
 
+  // Reset processed nodes before each traversal to ensure proper depth calculation
+  processedNodes.clear();
+  
+  // Start the recursive search for upstream connections
+  if (upstreamLevels > 0) {
+    findUpstream(nodeId, 0, upstreamLevels);
+  }
+  
+  // Reset processed nodes before downstream traversal
+  processedNodes.clear();
+  
   // Start the recursive search for downstream connections
-  findDownstream(nodeId, 0, 3);
+  if (downstreamLevels > 0) {
+    findDownstream(nodeId, 0, downstreamLevels);
+  }
 
   // Filter nodes and links based on our sets of included nodes
   const filteredNodes = network.nodes.filter(node => includedNodeIds.has(node.id));
@@ -129,6 +163,8 @@ export function filterNetworkByNode(
     return includedNodeIds.has(sourceId) && includedNodeIds.has(targetId);
   });
 
+  console.log(`Filtered network: ${filteredNodes.length} nodes, ${filteredLinks.length} links`);
+  
   return {
     nodes: filteredNodes,
     links: filteredLinks
