@@ -53,10 +53,17 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
     return 'text-gray-500';
   };
 
+  const getStockChangeBackgroundColor = () => {
+    if (stockChange === null) return 'bg-gray-200';
+    if (stockChange > 0) return 'bg-green-200';
+    if (stockChange < 0) return 'bg-red-200';
+    return 'bg-gray-200';
+  };
+
   return (
     <div 
       id={`company-${company.ticker}`}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover:shadow-lg transition ${
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover:shadow-lg transition relative ${
         highlighted ? 'ring-2 ring-orange-500 dark:ring-orange-400' : ''
       }`}
     >
@@ -140,6 +147,14 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
           {company.description && (
             <p className="text-sm mt-2">{company.description}</p>
           )}
+        </div>
+      )}
+
+      {stockChange !== null && (
+        <div 
+          className={`absolute bottom-2 right-2 px-2 py-1 rounded-full text-sm font-bold ${getStockChangeBackgroundColor()} ${getStockChangeColor()}`}
+        >
+          {stockChange.toFixed(2)}%
         </div>
       )}
     </div>
