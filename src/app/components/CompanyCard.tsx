@@ -76,6 +76,13 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
           >
             {company.name} {isPublicCompany ? `(${company.ticker})` : ''}
             {!isPublicCompany && <span className="text-xs ml-2 px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">Private</span>}
+            {stockChange !== null && (
+        <span
+          className={`text-xs ml-2 px-2 py-1 rounded text-sm font-bold ${getStockChangeBackgroundColor()} ${getStockChangeColor()}`}
+        >
+          {stockChange.toFixed(2)}%
+        </span>
+      )}
           </h3>
           {showTooltip && (
             <div className="absolute z-10 left-0 top-8 w-80 bg-gray-100 dark:bg-gray-700 p-3 rounded shadow-lg">
@@ -142,14 +149,6 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
           {company.description && (
             <p className="text-sm mt-2">{company.description}</p>
           )}
-        </div>
-      )}
-
-      {stockChange !== null && (
-        <div 
-          className={`absolute bottom-2 right-2 px-2 py-1 rounded-full text-sm font-bold ${getStockChangeBackgroundColor()} ${getStockChangeColor()}`}
-        >
-          {stockChange.toFixed(2)}%
         </div>
       )}
     </div>
