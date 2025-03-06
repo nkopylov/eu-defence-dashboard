@@ -15,7 +15,8 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
   const [showTooltip, setShowTooltip] = useState(false);
   const [stockData, setStockData] = useState<StockData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [stockChange, setStockChange] = useState<number | null>(null);
+
   const isPublicCompany = !company.ticker.startsWith('PRIVATE:');
 
   useEffect(() => {
@@ -33,6 +34,24 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
 
     fetchData();
   }, [company.ticker, dateRange, isPublicCompany]);
+
+  useEffect(() => {
+    if (stockData.length > 0) {
+      const firstPrice = stockData[0].close;
+      const lastPrice = stockData[stockData.length - 1].close;
+      const change = ((lastPrice - firstPrice) / firstPrice) * 100;
+      setStockChange(change);
+    } else {
+      setStockChange(null);
+    }
+  }, [stockData]);
+
+  const getStockChangeColor = () => {
+    if (stockChange === null) return 'text-gray-500';
+    if (stockChange > 0) return 'text-green-500';
+    if (stockChange < 0) return 'text-red-500';
+    return 'text-gray-500';
+  };
 
   return (
     <div 
@@ -79,12 +98,19 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
       </div>
 
       {isPublicCompany ? (
-        <StockChart 
-          data={stockData} 
-          companyName={company.name} 
-          isLoading={isLoading}
-          dateRange={dateRange}
-        />
+        <>
+          <StockChart 
+            data={stockData} 
+            companyName={company.name} 
+            isLoading={isLoading}
+            dateRange={dateRange}
+          />
+          {stockChange !== null && (
+            <div className={`mt-2 text-lg font-bold ${getStockChangeColor()}`}>
+              {stockChange.toFixed(2)}%
+            </div>
+          )}
+        </>
       ) : (
         <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-auto">
           <h4 className="font-bold text-lg mb-2">Company Profile</h4>
