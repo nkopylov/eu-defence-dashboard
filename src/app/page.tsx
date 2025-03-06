@@ -2,7 +2,7 @@
 
 import { subDays } from 'date-fns';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import CompanyCard from './components/CompanyCard';
 import DateRangePicker from './components/DateRangePicker';
 import DependencyGraph from './components/DependencyGraph';
@@ -20,7 +20,12 @@ import {
 import type { Company, DependencyNetwork, MaterialCategory, NetworkNode } from './types';
 import { DateRange } from './types';
 
-export default function Home() {
+// Create a client component that uses useSearchParams
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initializedFromUrlRef = useRef(false);
+
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: subDays(new Date(), 14),
     endDate: new Date(),
@@ -48,11 +53,6 @@ export default function Home() {
   const [upstreamLevels, setUpstreamLevels] = useState(1);
   const [downstreamLevels, setDownstreamLevels] = useState(3);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
-  // Add router for URL manipulation
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const initializedFromUrlRef = useRef(false);
   
   // Load companies from database on mount
   useEffect(() => {
@@ -725,5 +725,19 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="ml-3 text-gray-600 dark:text-gray-400">Loading...</p>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
