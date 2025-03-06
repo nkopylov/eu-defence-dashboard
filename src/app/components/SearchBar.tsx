@@ -18,6 +18,7 @@ const SearchBar = forwardRef<SearchBarRef, SearchBarProps>(({ nodes, onSearchRes
   const [results, setResults] = useState<NetworkNode[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
 
   // Update the search query when the selected node changes
   useEffect(() => {
@@ -25,9 +26,30 @@ const SearchBar = forwardRef<SearchBarRef, SearchBarProps>(({ nodes, onSearchRes
       const selectedNode = nodes.find(node => node.id === selectedNodeId);
       if (selectedNode) {
         setSearchQuery(selectedNode.name);
+        initializedRef.current = true;
       }
+    } else if (initializedRef.current) {
+      // Only clear if we've previously initialized (prevents clearing on first render)
+      setSearchQuery('');
     }
   }, [selectedNodeId, nodes]);
+
+  // Initialize from URL on first load
+  useEffect(() => {
+    if (!initializedRef.current && nodes.length > 0) {
+      // Check if there's a node parameter in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const nodeId = urlParams.get('node');
+      
+      if (nodeId) {
+        const node = nodes.find(n => n.id === nodeId);
+        if (node) {
+          setSearchQuery(node.name);
+          initializedRef.current = true;
+        }
+      }
+    }
+  }, [nodes]);
 
   // Expose clearSearch method to parent component
   useImperativeHandle(ref, () => ({

@@ -1,6 +1,7 @@
 'use client';
 
 import { subDays } from 'date-fns';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import CompanyCard from './components/CompanyCard';
 import DateRangePicker from './components/DateRangePicker';
@@ -46,6 +47,10 @@ export default function Home() {
   const [upstreamLevels, setUpstreamLevels] = useState(1);
   const [downstreamLevels, setDownstreamLevels] = useState(3);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // Add router for URL manipulation
+  const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Load companies from database on mount
   useEffect(() => {
@@ -115,9 +120,12 @@ export default function Home() {
     mobility: 'Mobility & Transport Systems'
   };
 
-  // Update handleSearch to use the custom levels
+  // Update handleSearch to use the custom levels and update URL
   const handleSearch = (nodeId: string | null, shouldScroll: boolean = true) => {
     setSearchedNodeId(nodeId);
+    
+    // Update URL with search parameter
+    updateUrlParams(nodeId, upstreamLevels, downstreamLevels);
     
     if (nodeId) {
       // Filter the network data based on the searched node using custom levels
@@ -211,6 +219,11 @@ export default function Home() {
     searchBarRef.current?.clearSearch();
     // Then reset the search state
     handleSearch(null);
+    // Reset network options to defaults
+    setUpstreamLevels(1);
+    setDownstreamLevels(3);
+    // Clear URL parameters
+    window.history.replaceState({}, '', window.location.pathname);
   };
 
   // Handle settings change
@@ -218,12 +231,69 @@ export default function Home() {
     setUpstreamLevels(newUpstream);
     setDownstreamLevels(newDownstream);
     
+    // Update URL with new network options
+    updateUrlParams(searchedNodeId, newUpstream, newDownstream);
+    
     // Re-apply filter with new settings if a node is selected
     if (searchedNodeId) {
       const filtered = filterNetworkByNode(dependencyData, searchedNodeId, newUpstream, newDownstream);
       setFilteredDependencyData(filtered);
     }
   };
+
+  // Function to update URL parameters
+  const updateUrlParams = (nodeId: string | null, upstream: number, downstream: number) => {
+    const params = new URLSearchParams();
+    
+    if (nodeId) {
+      params.set('node', nodeId);
+    } else {
+      // If no node is selected, clear all parameters
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    // Only add network options if they differ from defaults
+    if (upstream !== 1) {
+      params.set('upstream', upstream.toString());
+    }
+    
+    if (downstream !== 3) {
+      params.set('downstream', downstream.toString());
+    }
+    
+    // Update the URL without refreshing the page
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  // Effect to initialize from URL parameters on load
+  useEffect(() => {
+    if (!dependencyData.nodes.length) return; // Wait for data to be loaded
+    
+    const nodeId = searchParams.get('node');
+    const upstreamParam = searchParams.get('upstream');
+    const downstreamParam = searchParams.get('downstream');
+    
+    // Set network options from URL if present
+    const newUpstream = upstreamParam ? parseInt(upstreamParam, 10) : upstreamLevels;
+    const newDownstream = downstreamParam ? parseInt(downstreamParam, 10) : downstreamLevels;
+    
+    if (newUpstream !== upstreamLevels) {
+      setUpstreamLevels(newUpstream);
+    }
+    
+    if (newDownstream !== downstreamLevels) {
+      setDownstreamLevels(newDownstream);
+    }
+    
+    // Apply search if node parameter is present and we haven't already applied it
+    if (nodeId && nodeId !== searchedNodeId) {
+      // Use false for shouldScroll to prevent unnecessary scrolling on initial load
+      handleSearch(nodeId, false);
+    }
+  // Only run when dependencyData or searchParams change, not when the levels change
+  }, [dependencyData, searchParams, searchedNodeId]);
 
   // Add a function to filter companies based on the filtered network data
   const getFilteredCompanies = (companies: Company[]) => {
