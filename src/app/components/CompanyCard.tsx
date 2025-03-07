@@ -63,18 +63,19 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
   return (
     <div 
       id={`company-${company.ticker}`}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover:shadow-lg transition relative ${
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 hover:shadow-lg transition relative ${
         highlighted ? 'ring-2 ring-orange-500 dark:ring-orange-400' : ''
       }`}
     >
-      <div className="flex justify-between items-start mb-4">
-        <div className="relative">
+      <div className="flex flex-wrap justify-between items-start mb-3 sm:mb-4">
+        <div className="relative max-w-full">
           <h3 
-            className="text-xl font-bold hover:text-blue-600 cursor-pointer"
+            className="text-lg sm:text-xl font-bold hover:text-blue-600 cursor-pointer truncate pr-2"
+            onClick={() => setShowTooltip(!showTooltip)} 
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
           >
-            {company.name} {isPublicCompany ? `(${company.ticker})` : ''}
+            {company.name} {isPublicCompany ? <span className="hidden sm:inline">({company.ticker})</span> : ''}
             {!isPublicCompany && <span className="text-xs ml-2 px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">Private</span>}
             {stockChange !== null && (
         <span
@@ -85,7 +86,8 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
       )}
           </h3>
           {showTooltip && (
-            <div className="absolute z-10 left-0 top-8 w-80 bg-gray-100 dark:bg-gray-700 p-3 rounded shadow-lg">
+            <div className="absolute z-10 left-0 top-8 w-full sm:w-80 bg-gray-100 dark:bg-gray-700 p-3 rounded shadow-lg"
+                 style={{ maxWidth: "calc(100vw - 40px)" }}>
               <p><strong>Country:</strong> {company.country}</p>
               <p><strong>Products:</strong> {company.products}</p>
               {company.revenue !== undefined && (
@@ -106,7 +108,7 @@ export default function CompanyCard({ company, dateRange, highlighted = false }:
             </div>
           )}
         </div>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
+        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 sm:mt-0">
           {company.country}
         </span>
       </div>

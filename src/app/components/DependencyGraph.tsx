@@ -87,9 +87,11 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
   useEffect(() => {
     if (!svgRef.current || !data.nodes.length) return;
 
-    const width = 1000;
-    // Use the height prop
-
+    // Use responsive width based on container size
+    const containerWidth = svgRef.current.parentElement?.clientWidth || 1000;
+    const width = Math.min(containerWidth, 1000); // Cap at 1000px max
+    const isMobile = containerWidth < 640; // Check if we're on a mobile screen
+    
     // Clear previous graph
     d3.select(svgRef.current).selectAll("*").remove();
 
@@ -99,6 +101,7 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
       .attr("viewBox", [0, 0, width, height])
       .style("max-width", "100%")
       .style("height", "auto")
+      .style("touch-action", "manipulation") // Improve touch interactions
       .style("color", "var(--foreground)"); // Ensure text inherits the theme color
 
     const container = svg.append("g");
@@ -119,13 +122,16 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
       material: "#69db7c"  // Bright green for material providers
     };
 
-    // Create a force simulation
+    // Create a force simulation with mobile-friendly parameters
+    const forceStrength = isMobile ? -300 : -500; // Weaker force on mobile for better performance
+    const distanceMultiplier = isMobile ? 0.8 : 1; // Shorter distances on mobile
+    
     const simulation = d3.forceSimulation(data.nodes as SimulationNetworkNode[])
       .force("link", d3.forceLink(data.links)
         .id((d: d3.SimulationNodeDatum) => (d as SimulationNetworkNode).id)
-        .distance(100)
+        .distance(100 * distanceMultiplier)
         .strength(0.8))
-      .force("charge", d3.forceManyBody().strength(-500))
+      .force("charge", d3.forceManyBody().strength(forceStrength))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("x", d3.forceX(width / 2).strength(0.1))
       .force("y", d3.forceY(height / 2).strength(0.1));
@@ -142,6 +148,11 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
         d3.select(this)
           .attr("stroke", "var(--highlight-color, #ddd)")
           .attr("stroke-opacity", 1);
+          
+        // Don't show tooltips on mobile/small screens
+        if (isMobile) {
+          return;
+        }
         
         // Just capture the initial mouse position - the positioning effect will handle the rest
         setTooltipPosition({ x: event.pageX, y: event.pageY });
@@ -179,11 +190,13 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
         if (onNodeClick) onNodeClick(d);
       });
 
-    // Add circles for the nodes
+    // Add circles for the nodes with mobile-friendly sizing
     node.append("circle")
       .attr("r", d => {
         // Make highlighted nodes larger
-        const baseSize = (4 - d.level) * 5; // Base size based on level
+        // Smaller base sizes on mobile for better display
+        const sizeMultiplier = isMobile ? 0.8 : 1;
+        const baseSize = (4 - d.level) * 5 * sizeMultiplier; // Base size based on level, scaled for mobile
         return highlightedNode === d.ticker ? baseSize * 1.3 : baseSize; // 30% larger for highlighted node
       })
       .attr("fill", d => nodeColors[d.type as keyof typeof nodeColors])
@@ -192,15 +205,22 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
       .attr("filter", d => highlightedNode === d.ticker ? "drop-shadow(0 0 5px rgba(255, 152, 0, 0.7))" : "none") // Add glow effect to highlighted node
       .attr("class", "filter-none cursor-pointer"); // Ensure visibility in dark mode and show cursor pointer
 
-    // Add labels for the nodes
+    // Add labels for the nodes, conditionally on mobile
     node.append("text")
       .attr("dx", 12)
       .attr("dy", ".35em")
-      .text(d => d.name)
-      .attr("font-size", "12px")
+      .text(d => {
+        // On mobile, only show text for important nodes or the highlighted node
+        if (isMobile) {
+          // Only show text for main nodes (level 0 or 1) or the highlighted node
+          return (d.level <= 1 || d.ticker === highlightedNode) ? d.name : '';
+        }
+        return d.name;
+      })
+      .attr("font-size", isMobile ? "10px" : "12px") // Smaller font on mobile
       .attr("font-weight", d => d.level === 0 ? "bold" : "normal")
       .attr("fill", "var(--foreground)")
-      .attr("class", "filter-none") // Ensure visibility in both modes
+      .attr("class", "filter-none"); // Ensure visibility in both modes
 
     // Handle node events
     node.on("mouseover", async function(event, d) {
@@ -252,6 +272,11 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
         .attr("stroke", "#ffcc00")
         .attr("stroke-opacity", 1)
         .attr("stroke-width", l => Math.sqrt(l.value) * 2);
+      
+      // Don't show tooltips on mobile/small screens
+      if (isMobile) {
+        return;
+      }
       
       // Just capture the initial mouse position - the positioning effect will handle the rest
       setTooltipPosition({ x: event.pageX, y: event.pageY });
@@ -405,6 +430,7 @@ export default function DependencyGraph({ data, dateRange, onNodeClick, highligh
             left: tooltipPosition.x + 10, 
             top: tooltipPosition.y + 10,
             width: tooltipContent.type === 'node' ? '240px' : '220px',
+            maxWidth: "calc(100vw - 40px)", // Prevent tooltip from overflowing viewport
             maxHeight: '300px',
             overflow: 'auto',
             pointerEvents: "none",

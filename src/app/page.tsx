@@ -445,64 +445,173 @@ function HomeContent() {
     return companies.filter(company => filteredTickers.has(company.ticker));
   };
 
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Add window size hook for responsive graph height
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Call handler right away to update initial size
+    handleResize();
+    
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Calculate graph height based on screen size
+  const graphHeight = windowSize.width < 640 
+    ? Math.max(350, Math.round(windowSize.height * 0.75)) 
+    : 350;
+
   return (
     <div className="min-h-screen pb-10 bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
-      <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Defence Industry Dashboard
-            </h1>
-            <SearchBar 
-              nodes={dependencyData.nodes} 
-              onSearchResult={handleSearch}
-              selectedNodeId={searchedNodeId}
-              ref={searchBarRef}
-            />
+      {/* Floating filter notification for mobile */}
+      {searchedNodeId && (
+        <div className="md:hidden fixed top-0 left-0 w-full bg-blue-600 text-white z-30 px-4 py-2 flex justify-between items-center shadow-md">
+          <div className="text-sm font-medium truncate">
+            <span className="font-bold">Filtered:</span> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name || 'Company'}
           </div>
-          <div className="flex justify-between items-center">
-            <DateRangePicker 
-              onChange={handleDateRangeChange} 
-              selectedPreset={dateRange.preset}
-            />
-            {searchedNodeId && (
-              <div className="mt-2 text-sm text-center">
-                <button 
-                  onClick={clearFilters}
-                  className="text-blue-600 hover:underline"
-                >
-                  Clear filter and show full network
-                </button>
+          <button 
+            onClick={clearFilters}
+            className="ml-2 bg-white text-blue-600 px-2 py-1 rounded text-xs font-bold"
+          >
+            Clear Filter
+          </button>
+        </div>
+      )}
+      
+      <header className={`bg-white dark:bg-gray-800 shadow-md sticky ${searchedNodeId ? 'md:top-0 top-10' : 'top-0'} z-20`}>
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+          {/* Mobile Header */}
+          <div className="md:hidden">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                Defence Dashboard
+              </h1>
+            </div>
+            
+            <div className="flex flex-col space-y-3">
+              {/* Search always visible on mobile */}
+              <SearchBar 
+                nodes={dependencyData.nodes} 
+                onSearchResult={handleSearch}
+                selectedNodeId={searchedNodeId}
+                ref={searchBarRef}
+              />
+              
+              {/* DateRangePicker always visible on mobile */}
+              <DateRangePicker 
+                onChange={handleDateRangeChange} 
+                selectedPreset={dateRange.preset}
+              />
+            </div>
+          </div>
+
+          {/* Tablet/Desktop Header */}
+          <div className="hidden md:block">
+            {/* Tablet/Desktop title - hidden on tablets as title appears in tablet layout */}
+            <div className="hidden lg:flex justify-between items-center mb-4">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Defence Industry Dashboard
+              </h1>
+            </div>
+            
+            {/* Tablet Layout - More compact, side by side */}
+            <div className="md:flex lg:hidden flex-col space-y-3">
+              <div className="flex justify-between items-center">
+                <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white pr-4">
+                  Defence Dashboard
+                </h1>
+                <div className="w-64">
+                  <SearchBar 
+                    nodes={dependencyData.nodes} 
+                    onSearchResult={handleSearch}
+                    selectedNodeId={searchedNodeId}
+                    ref={searchBarRef}
+                  />
+                </div>
               </div>
-            )}
+              <div>
+                <DateRangePicker 
+                  onChange={handleDateRangeChange} 
+                  selectedPreset={dateRange.preset}
+                />
+              </div>
+            </div>
+            
+            {/* Desktop Layout - DatePicker & Search on same line */}
+            <div className="hidden lg:flex justify-between items-center">
+              <div className="flex-grow mr-4">
+                <DateRangePicker 
+                  onChange={handleDateRangeChange} 
+                  selectedPreset={dateRange.preset}
+                />
+              </div>
+              <div className="w-72">
+                <SearchBar 
+                  nodes={dependencyData.nodes} 
+                  onSearchResult={handleSearch}
+                  selectedNodeId={searchedNodeId}
+                  ref={searchBarRef}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4">
         {/* Network Graph - Always Visible */}
-        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 transition-all duration-300">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-bold">Defence Industry Supply Chain Network</h2>
-            <button 
-              onClick={() => setNetworkCollapsed(!networkCollapsed)}
-              className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm"
-            >
-              {networkCollapsed ? 'Expand' : 'Collapse'}
-            </button>
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 transition-all duration-300">
+          <div className="flex flex-wrap justify-between items-center mb-2">
+            <h2 className="text-lg sm:text-xl font-bold pr-2">Defence Industry Network</h2>
+            <div className="flex space-x-2">
+              {searchedNodeId && (
+                <button 
+                  onClick={clearFilters}
+                  className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded text-xs sm:text-sm"
+                >
+                  Clear Filter
+                </button>
+              )}
+              <button 
+                onClick={() => setNetworkCollapsed(!networkCollapsed)}
+                className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs sm:text-sm"
+              >
+                {networkCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
           </div>
           
           {!networkCollapsed && (
             <>
               <div className="flex flex-col md:flex-row justify-between items-start mb-4">
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                   This interactive network visualizes the dependencies between defense manufacturers, suppliers, 
-                  and material providers. <strong>Click on any node to view detailed company information below.</strong>
+                  and material providers. <strong className="hidden sm:inline">Click on any node to view detailed company information below.</strong>
+                  <strong className="inline sm:hidden">Tap any node for details.</strong>
                 </p>
                 {searchedNodeId && (
-                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-sm flex items-center relative">
+                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-xs sm:text-sm flex flex-wrap items-center relative">
                     <span>
-                      Showing filtered network: connections {upstreamLevels} level{upstreamLevels > 1 ? 's' : ''} up and {downstreamLevels} level{downstreamLevels > 1 ? 's' : ''} down from selected company
+                      Filtered: {upstreamLevels} level{upstreamLevels > 1 ? 's' : ''} up, {downstreamLevels} level{downstreamLevels > 1 ? 's' : ''} down
                     </span>
                     <div className="flex items-center ml-2">
                       <button 
@@ -514,12 +623,6 @@ function HomeContent() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                      </button>
-                      <button 
-                        onClick={clearFilters}
-                        className="ml-2 px-2 py-0.5 bg-blue-200 dark:bg-blue-800 rounded hover:bg-blue-300 dark:hover:bg-blue-700 transition"
-                      >
-                        Reset
                       </button>
                       <NetworkFilterSettings 
                         isOpen={isSettingsOpen}
@@ -538,33 +641,38 @@ function HomeContent() {
                   dateRange={dateRange} 
                   onNodeClick={handleNodeClick}
                   highlightedNode={highlightedCompany}
-                  height={450}
+                  height={graphHeight}
                 />
               </div>
             </>
           )}
         </div>
 
-        {/* Add a message above the tabs to indicate filtering */}
+        {/* Filter message for tablets and desktop */}
         {searchedNodeId && (
-          <div className="mb-4 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm text-blue-800 dark:text-blue-200">
-            <p>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Showing only companies that are part of the filtered network. 
+          <div className="hidden md:block mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm text-blue-800 dark:text-blue-200 shadow">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <span>
+                  <strong>Filtered Network:</strong> Showing only companies connected to 
+                  <span className="font-semibold"> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name}</span>
+                </span>
+              </div>
               <button 
                 onClick={clearFilters}
-                className="ml-2 underline hover:text-blue-600 dark:hover:text-blue-300"
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm ml-4 flex-shrink-0 transition-colors"
               >
-                Clear filter
+                Clear Filter
               </button>
-            </p>
+            </div>
           </div>
         )}
 
-        {/* Tabs - Below Network Graph */}
-        <div className="flex flex-wrap border-b mb-6">
+        {/* Tabs - Below Network Graph (Desktop only) */}
+        <div className="hidden md:flex flex-wrap border-b mb-6 overflow-x-auto">
           <button
             className={`py-2 px-4 font-medium text-sm ${
               activeTab === 'defense'
@@ -612,6 +720,74 @@ function HomeContent() {
               </span>
             )}
           </button>
+        </div>
+        
+        {/* Mobile Tab Navigation */}
+        <div className="md:hidden mt-2 mb-4">
+          <div className="flex border-b overflow-x-auto pb-1 whitespace-nowrap">
+            <button
+              className={`py-2 px-4 font-medium text-sm ${
+                activeTab === 'defense'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => handleTabChange('defense')}
+            >
+              Defense
+              {searchedNodeId && (
+                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                  {getFilteredCompanies(defenseCompanies).length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`py-2 px-4 font-medium text-sm ${
+                activeTab === 'potential'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => handleTabChange('potential')}
+            >
+              Potential
+              {searchedNodeId && (
+                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                  {getFilteredCompanies(potentialCompanies).length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`py-2 px-4 font-medium text-sm ${
+                activeTab === 'materials'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => handleTabChange('materials')}
+            >
+              Materials
+              {searchedNodeId && (
+                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                  {Object.values(materialCompaniesByCategory).flat().filter(company => 
+                    filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                  ).length}
+                </span>
+              )}
+            </button>
+          </div>
+          
+          <h2 className="text-lg font-semibold pt-2">
+            {activeTab === 'defense' && 'Defense Companies'}
+            {activeTab === 'potential' && 'Potential Defense Companies'}
+            {activeTab === 'materials' && 'Crucial Materials'}
+            {searchedNodeId && (
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                {activeTab === 'defense' && getFilteredCompanies(defenseCompanies).length}
+                {activeTab === 'potential' && getFilteredCompanies(potentialCompanies).length}
+                {activeTab === 'materials' && Object.values(materialCompaniesByCategory).flat().filter(company => 
+                  filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                ).length}
+              </span>
+            )}
+          </h2>
         </div>
 
         {/* Loading state */}

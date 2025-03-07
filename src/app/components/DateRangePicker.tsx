@@ -118,7 +118,127 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-center">
-      <div className="flex gap-4">
+      {/* Mobile & Small Screens (below md breakpoint) */}
+      <div className="w-full md:hidden">
+        <div className="overflow-x-auto pb-2 -mx-2 px-2">
+          <div className="flex gap-2 min-w-max">
+            <button
+              className={getTodayButtonStyle().replace('text-lg', 'text-sm').replace('px-5 py-2.5', 'px-3 py-1.5')}
+              onClick={handleTodayMode}
+            >
+              Today
+            </button>
+            <button
+              className={getButtonStyle('1w').replace('px-4 py-2', 'px-3 py-1.5')}
+              onClick={() => handlePresetChange(7, '1w')}
+            >
+              1W
+            </button>
+            <button
+              className={getButtonStyle('2w').replace('px-4 py-2', 'px-3 py-1.5')}
+              onClick={() => handlePresetChange(14, '2w')}
+            >
+              2W
+            </button>
+            <button
+              className={getButtonStyle('1m').replace('px-4 py-2', 'px-3 py-1.5')}
+              onClick={() => handlePresetChange(30, '1m')}
+            >
+              1M
+            </button>
+            <button
+              className={getButtonStyle('3m').replace('px-4 py-2', 'px-3 py-1.5')}
+              onClick={() => handlePresetChange(90, '3m')}
+            >
+              3M
+            </button>
+            <button
+              className={getButtonStyle('6m').replace('px-4 py-2', 'px-3 py-1.5')}
+              onClick={() => handlePresetChange(180, '6m')}
+            >
+              6M
+            </button>
+          </div>
+        </div>
+        
+        {/* Custom date picker on mobile */}
+        {activePreset === 'custom' && !isTodayMode && (
+          <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded-md shadow">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col">
+                <span className="text-xs mb-1">From:</span>
+                <DatePicker
+                  selected={startDate}
+                  onChange={handleStartDateChange}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  maxDate={endDate}
+                  className="p-2 border rounded w-full text-sm"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs mb-1">To:</span>
+                <DatePicker
+                  selected={endDate}
+                  onChange={handleEndDateChange}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  maxDate={new Date()}
+                  className="p-2 border rounded w-full text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Medium Tablet - More compact */}
+      <div className="hidden md:block lg:hidden">
+        <div className="flex gap-1.5">
+          <button
+            className={getTodayButtonStyle().replace('text-lg', 'text-base').replace('px-5 py-2.5', 'px-2.5 py-1.5')}
+            onClick={handleTodayMode}
+          >
+            Today
+          </button>
+          <button
+            className={getButtonStyle('1w').replace('px-4 py-2', 'px-2.5 py-1.5')}
+            onClick={() => handlePresetChange(7, '1w')}
+          >
+            1W
+          </button>
+          <button
+            className={getButtonStyle('2w').replace('px-4 py-2', 'px-2.5 py-1.5')}
+            onClick={() => handlePresetChange(14, '2w')}
+          >
+            2W
+          </button>
+          <button
+            className={getButtonStyle('1m').replace('px-4 py-2', 'px-2.5 py-1.5')}
+            onClick={() => handlePresetChange(30, '1m')}
+          >
+            1M
+          </button>
+          <button
+            className={getButtonStyle('3m').replace('px-4 py-2', 'px-2.5 py-1.5')}
+            onClick={() => handlePresetChange(90, '3m')}
+          >
+            3M
+          </button>
+          <button
+            className={getButtonStyle('6m').replace('px-4 py-2', 'px-2.5 py-1.5')}
+            onClick={() => handlePresetChange(180, '6m')}
+          >
+            6M
+          </button>
+        </div>
+      </div>
+      
+      {/* Desktop buttons version - only visible on large screens */}
+      <div className="hidden lg:flex gap-2">
         <button
           className={getTodayButtonStyle()}
           onClick={handleTodayMode}
@@ -156,8 +276,9 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
           6M
         </button>
       </div>
+      {/* Only show custom date pickers on very large screens when not in today mode */}
       {!isTodayMode && (
-        <div className="flex flex-col sm:flex-row gap-2 items-center">
+        <div className="hidden 2xl:flex gap-2 items-center">
           <div className="flex items-center gap-2">
             <span>From:</span>
             <DatePicker
