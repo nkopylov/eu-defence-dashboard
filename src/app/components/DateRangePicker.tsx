@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { DateRange } from '../types';
@@ -33,7 +33,7 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
     }
   };
 
-  const handlePresetChange = (days: number, presetName: string) => {
+  const handlePresetChange = useCallback((days: number, presetName: string) => {
     const end = new Date();
     const start = subDays(end, days);
     setStartDate(start);
@@ -41,9 +41,9 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
     setIsTodayMode(false);
     setActivePreset(presetName);
     onChange({ startDate: start, endDate: end, preset: presetName });
-  };
+  }, [onChange]);
 
-  const handleTodayMode = () => {
+  const handleTodayMode = useCallback(() => {
     const now = new Date();
     // Set time to beginning of day for startDate
     const todayStart = new Date(now);
@@ -54,7 +54,7 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
     setIsTodayMode(true);
     setActivePreset('today');
     onChange({ startDate: todayStart, endDate: now, isToday: true, preset: 'today' });
-  };
+  }, [onChange]);
 
   // Initialize with selected preset if provided
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
         handlePresetChange(180, '6m');
       }
     }
-  }, [selectedPreset]);
+  }, [selectedPreset, activePreset, handlePresetChange, handleTodayMode]);
 
   // Auto-refresh for Today mode
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function DateRangePicker({ onChange, selectedPreset }: DateRangeP
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isTodayMode, onChange, startDate]);
+  }, [isTodayMode, onChange, startDate, activePreset, handlePresetChange, handleTodayMode]);
 
   // Helper function to determine button style
   const getButtonStyle = (preset: string) => {

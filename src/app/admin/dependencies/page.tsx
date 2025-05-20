@@ -30,11 +30,8 @@ export default function DependenciesAdmin() {
     }
     
     if (!authKey) {
-      // Use Next.js router instead of window.location for better SPA behavior
-      import('next/navigation').then(({ useRouter }) => {
-        const router = useRouter();
-        router.push('/admin');
-      });
+      // Redirect to admin page without using useRouter in a callback
+      window.location.href = '/admin';
     }
   }, []);
 

@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get('to');
     
     // Get company filters
-    let companiesParam = searchParams.get('companies');
+    const companiesParam = searchParams.get('companies');
     let companies: Company[] = [];
     let symbols = '';
-    let privateCompanyNames: string[] = [];
+    const privateCompanyNames: string[] = [];
     
     if (companiesParam) {
       try {

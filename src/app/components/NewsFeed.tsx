@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Company, DateRange } from '../types';
 import { getNewsArticles, NewsArticle } from '../services/newsService';
+import { Company, DateRange } from '../types';
+
+import { Image } from 'next/image';
 
 interface NewsFeedProps {
   companies: Company[];
@@ -10,6 +12,7 @@ interface NewsFeedProps {
   searchedNodeId: string | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  isMobile?: boolean;
 }
 
 export default function NewsFeed({ 
@@ -17,7 +20,8 @@ export default function NewsFeed({
   dateRange, 
   searchedNodeId, 
   isCollapsed, 
-  onToggleCollapse 
+  onToggleCollapse,
+  isMobile = false
 }: NewsFeedProps) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,9 +104,9 @@ export default function NewsFeed({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-full'}`}>
+    <div className={`bg-white dark:bg-gray-800 flex flex-col h-full transition-all duration-300 w-full ${isMobile ? 'rounded-t-xl shadow-lg' : ''}`}>
       {/* Header with collapse button */}
-      <div className="sticky top-0 bg-white dark:bg-gray-800 py-3 px-4 border-b z-10 flex justify-between items-center shadow-sm">
+      <div className={`sticky ${isMobile ? (isCollapsed ? 'bottom-0' : 'top-0') : 'top-0'} bg-white dark:bg-gray-800 py-3 px-4 ${isMobile && !isCollapsed ? 'border-b rounded-t-xl' : isMobile ? 'border-t rounded-t-xl' : 'border-b'} z-10 flex justify-between items-center shadow-sm ${isCollapsed && !isMobile ? 'w-12' : 'w-full'} ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         {!isCollapsed && (
           <h2 className="text-xl font-bold truncate">
             News Feed
@@ -115,21 +119,29 @@ export default function NewsFeed({
         )}
         <button 
           onClick={onToggleCollapse}
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex-shrink-0"
+          className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex-shrink-0 ${isMobile && isCollapsed ? 'w-full' : ''}`}
           title={isCollapsed ? "Expand news panel" : "Collapse news panel"}
           aria-label={isCollapsed ? "Expand news panel" : "Collapse news panel"}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            className="h-5 w-5" 
+            className={`h-5 w-5 ${isMobile && isCollapsed ? 'mx-auto' : ''}`}
             fill="none" 
             viewBox="0 0 24 24" 
             stroke="currentColor"
           >
             {isCollapsed ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              isMobile ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              )
             ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              isMobile ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              )
             )}
           </svg>
         </button>
@@ -138,7 +150,7 @@ export default function NewsFeed({
       {/* News content - only show when not collapsed */}
       {!isCollapsed && (
         <div 
-          className="flex-1 overflow-y-auto p-4"
+          className={`flex-1 overflow-y-auto p-2 sm:p-4 ${isMobile ? 'pb-16' : ''}`}
           onScroll={handleScroll}
         >
           {isLoading && page === 1 ? (
@@ -174,10 +186,10 @@ export default function NewsFeed({
               <p className="text-gray-600 dark:text-gray-400">No news articles found for the selected criteria.</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {articles.map((article, index) => (
-                <article key={index} className="border-b pb-4 mb-4 last:border-0">
-                  <h3 className="font-bold text-lg mb-2">
+                <article key={index} className="border-b pb-3 sm:pb-4 mb-3 sm:mb-4 last:border-0">
+                  <h3 className="font-bold text-base sm:text-lg mb-2">
                     <a 
                       href={article.url} 
                       target="_blank" 
@@ -188,7 +200,7 @@ export default function NewsFeed({
                     </a>
                   </h3>
                   
-                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  <div className="flex items-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">
                     <span className="mr-2">{article.source.name}</span>
                     <span>•</span>
                     <span className="ml-2">{formatDate(article.publishedAt)}</span>
@@ -196,21 +208,17 @@ export default function NewsFeed({
                   
                   {article.urlToImage && (
                     <div className="mb-3">
-                      <div className="w-full h-48 relative">
-                        <img 
+                      <div className="w-full h-32 sm:h-48 relative">
+                        <Image 
                           src={article.urlToImage} 
                           alt={article.title} 
-                          className="w-full h-48 object-cover rounded-md"
-                          onError={(e) => {
-                            // Hide broken images
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
+                          className="w-full h-32 sm:h-48 object-cover rounded-md"
                         />
                       </div>
                     </div>
                   )}
                   
-                  <p className="text-gray-700 dark:text-gray-300">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                     {article.description || article.content?.split('[+')[0] || 'No description available.'}
                   </p>
                   
@@ -218,7 +226,7 @@ export default function NewsFeed({
                     href={article.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-blue-600 hover:underline"
+                    className="inline-block mt-2 text-blue-600 hover:underline text-sm sm:text-base"
                   >
                     Read more
                   </a>

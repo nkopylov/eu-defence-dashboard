@@ -1,7 +1,7 @@
 'use client';
 
 import { subDays } from 'date-fns';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import CompanyCard from './components/CompanyCard';
 import DateRangePicker from './components/DateRangePicker';
@@ -23,7 +23,6 @@ import { DateRange } from './types';
 
 // Create a client component that uses useSearchParams
 function HomeContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initializedFromUrlRef = useRef(false);
 
@@ -61,12 +60,11 @@ function HomeContent() {
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
 
-  // Calculate the news feed width - max 1/3 of the screen but wider
-  const maxNewsFeedWidth = windowSize.width / 3;
-  const newsFeedWidth = Math.min(400, maxNewsFeedWidth);
+  // Use fixed width for news feed on desktop (400px) and full width for mobile
+  // We no longer need to calculate this dynamically since we're using fixed values in the className
   
-  // News feed collapsed state - depend on screen size
-  const [isNewsFeedCollapsed, setIsNewsFeedCollapsed] = useState(windowSize.width < 1024);
+  // News feed collapsed state - always collapsed on small screens initially
+  const [isNewsFeedCollapsed, setIsNewsFeedCollapsed] = useState(true);
   
   // Load companies from database on mount
   useEffect(() => {
@@ -109,10 +107,8 @@ function HomeContent() {
         height,
       });
       
-      // Auto-collapse news panel on small screens
-      if (width < 1024 && !isNewsFeedCollapsed) {
-        setIsNewsFeedCollapsed(true);
-      } else if (width >= 1024 && isNewsFeedCollapsed && !localStorage.getItem('newsFeedCollapsed')) {
+      // For larger screens, auto-expand if user hasn't manually set a preference
+      if (width >= 1024 && isNewsFeedCollapsed && !localStorage.getItem('newsFeedCollapsed')) {
         // Only auto-expand on large screens if user hasn't manually collapsed it
         setIsNewsFeedCollapsed(false);
       }
@@ -146,8 +142,8 @@ function HomeContent() {
       // Only apply saved state if it exists
       setIsNewsFeedCollapsed(savedNewsFeedState === 'true');
     } else {
-      // Otherwise use screen size based default
-      setIsNewsFeedCollapsed(windowSize.width < 1024);
+      // Otherwise use default - collapsed for small screens
+      setIsNewsFeedCollapsed(true);
     }
   }, [windowSize.width]);
   
@@ -494,8 +490,8 @@ function HomeContent() {
     
     // Mark as initialized
     initializedFromUrlRef.current = true;
-  // Only run when dependencyData or searchParams change
-  }, [dependencyData, searchParams]);
+  // Include dateRange in dependencies
+  }, [dependencyData, searchParams, dateRange]);
 
   // Add a function to filter companies based on the filtered network data
   const getFilteredCompanies = (companies: Company[]) => {
@@ -510,9 +506,6 @@ function HomeContent() {
     // Filter companies to only include those in the filtered network
     return companies.filter(company => filteredTickers.has(company.ticker));
   };
-
-  // Mobile menu state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Calculate graph height based on screen size
   const graphHeight = windowSize.width < 640 
@@ -538,7 +531,7 @@ function HomeContent() {
   };
 
   // Calculate the actual content width to keep it centered
-  const contentWidth = isNewsFeedCollapsed ? '100%' : `calc(100% - ${newsFeedWidth}px)`;
+  const contentWidth = windowSize.width < 768 || isNewsFeedCollapsed ? '100%' : 'calc(100% - 400px)';
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)] relative">
@@ -646,7 +639,7 @@ function HomeContent() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4">
+        <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 pb-20 sm:pb-4">
           {/* Network Graph - Always Visible */}
           <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 transition-all duration-300">
             <div className="flex flex-wrap justify-between items-center mb-2">
@@ -977,12 +970,13 @@ function HomeContent() {
         </footer>
       </div>
 
-      {/* News Feed - Fixed position panel on the right */}
+      {/* News Feed - Position based on screen size (bottom for mobile, right for desktop) */}
       <div 
-        className="fixed top-0 right-0 h-full shadow-lg transition-all duration-300 z-30"
-        style={{ 
-          width: isNewsFeedCollapsed ? '48px' : `${newsFeedWidth}px` 
-        }}
+        className={`fixed shadow-lg transition-all duration-300 z-30 ${
+          windowSize.width < 768 
+            ? (isNewsFeedCollapsed ? 'bottom-0 left-0 right-0 h-12' : 'bottom-0 left-0 right-0 h-[80vh] rounded-t-xl') 
+            : (isNewsFeedCollapsed ? 'top-0 right-0 h-full w-12' : 'top-0 right-0 h-full w-[400px]')
+        }`}
       >
         <NewsFeed 
           companies={getFilteredCompaniesForNews()} 
@@ -990,6 +984,7 @@ function HomeContent() {
           searchedNodeId={searchedNodeId}
           isCollapsed={isNewsFeedCollapsed}
           onToggleCollapse={toggleNewsFeed}
+          isMobile={windowSize.width < 768}
         />
       </div>
     </div>

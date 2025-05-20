@@ -28,11 +28,8 @@ export default function CompaniesAdmin() {
     }
     
     if (!authKey) {
-      // Use Next.js router instead of window.location for better SPA behavior
-      import('next/navigation').then(({ useRouter }) => {
-        const router = useRouter();
-        router.push('/admin');
-      });
+      // Redirect to admin page
+      window.location.href = '/admin';
     }
   }, []);
 
