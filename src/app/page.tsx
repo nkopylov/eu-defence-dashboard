@@ -7,6 +7,7 @@ import CompanyCard from './components/CompanyCard';
 import DateRangePicker from './components/DateRangePicker';
 import DependencyGraph from './components/DependencyGraph';
 import NetworkFilterSettings from './components/NetworkFilterSettings';
+import NewsFeed from './components/NewsFeed';
 import SearchBar, { SearchBarRef } from './components/SearchBar';
 import {
   getDefenseCompanies,
@@ -54,6 +55,19 @@ function HomeContent() {
   const [downstreamLevels, setDownstreamLevels] = useState(3);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
+  // Window size state for responsive design
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  // Calculate the news feed width - max 1/3 of the screen but wider
+  const maxNewsFeedWidth = windowSize.width / 3;
+  const newsFeedWidth = Math.min(400, maxNewsFeedWidth);
+  
+  // News feed collapsed state - depend on screen size
+  const [isNewsFeedCollapsed, setIsNewsFeedCollapsed] = useState(windowSize.width < 1024);
+  
   // Load companies from database on mount
   useEffect(() => {
     async function loadCompanies() {
@@ -80,11 +94,45 @@ function HomeContent() {
     
     loadCompanies();
   }, []);
+
+  // Track window resize for responsive layout
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    function handleResize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      setWindowSize({
+        width,
+        height,
+      });
+      
+      // Auto-collapse news panel on small screens
+      if (width < 1024 && !isNewsFeedCollapsed) {
+        setIsNewsFeedCollapsed(true);
+      } else if (width >= 1024 && isNewsFeedCollapsed && !localStorage.getItem('newsFeedCollapsed')) {
+        // Only auto-expand on large screens if user hasn't manually collapsed it
+        setIsNewsFeedCollapsed(false);
+      }
+    }
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Call handler right away to update initial size
+    handleResize();
+    
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isNewsFeedCollapsed]);
   
   // Load settings from local storage on initial render
   useEffect(() => {
     const savedUpstream = localStorage.getItem('networkFilterUpstreamLevels');
     const savedDownstream = localStorage.getItem('networkFilterDownstreamLevels');
+    const savedNewsFeedState = localStorage.getItem('newsFeedCollapsed');
     
     if (savedUpstream) {
       setUpstreamLevels(parseInt(savedUpstream));
@@ -93,13 +141,26 @@ function HomeContent() {
     if (savedDownstream) {
       setDownstreamLevels(parseInt(savedDownstream));
     }
-  }, []);
+    
+    if (savedNewsFeedState) {
+      // Only apply saved state if it exists
+      setIsNewsFeedCollapsed(savedNewsFeedState === 'true');
+    } else {
+      // Otherwise use screen size based default
+      setIsNewsFeedCollapsed(windowSize.width < 1024);
+    }
+  }, [windowSize.width]);
   
   // Save settings to local storage when they change
   useEffect(() => {
     localStorage.setItem('networkFilterUpstreamLevels', upstreamLevels.toString());
     localStorage.setItem('networkFilterDownstreamLevels', downstreamLevels.toString());
   }, [upstreamLevels, downstreamLevels]);
+  
+  // Save news feed collapsed state to local storage
+  useEffect(() => {
+    localStorage.setItem('newsFeedCollapsed', isNewsFeedCollapsed.toString());
+  }, [isNewsFeedCollapsed]);
   
   // Group material companies by category
   const materialCompaniesByCategory = materialCompanies.reduce((acc, company) => {
@@ -148,6 +209,11 @@ function HomeContent() {
       setFilteredDependencyData(dependencyData);
       setHighlightedCompany(null);
     }
+  };
+
+  // Toggle news feed collapse
+  const toggleNewsFeed = () => {
+    setIsNewsFeedCollapsed(!isNewsFeedCollapsed);
   };
 
   // Scroll to the company card in the appropriate tab
@@ -448,98 +514,126 @@ function HomeContent() {
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Add window size hook for responsive graph height
-  const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0,
-  });
-
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
-    
-    function handleResize() {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
-    
-    // Add event listener
-    window.addEventListener('resize', handleResize);
-    
-    // Call handler right away to update initial size
-    handleResize();
-    
-    // Remove event listener on cleanup
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
   // Calculate graph height based on screen size
   const graphHeight = windowSize.width < 640 
     ? Math.max(350, Math.round(windowSize.height * 0.75)) 
     : 350;
 
-  return (
-    <div className="min-h-screen pb-10 bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
-      {/* Floating filter notification for mobile */}
-      {searchedNodeId && (
-        <div className="md:hidden fixed top-0 left-0 w-full bg-blue-600 text-white z-30 px-4 py-2 flex justify-between items-center shadow-md">
-          <div className="text-sm font-medium truncate">
-            <span className="font-bold">Filtered:</span> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name || 'Company'}
-          </div>
-          <button 
-            onClick={clearFilters}
-            className="ml-2 bg-white text-blue-600 px-2 py-1 rounded text-xs font-bold"
-          >
-            Clear Filter
-          </button>
-        </div>
-      )}
-      
-      <header className={`bg-white dark:bg-gray-800 shadow-md sticky ${searchedNodeId ? 'md:top-0 top-10' : 'top-0'} z-20`}>
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
-          {/* Mobile Header */}
-          <div className="md:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Defence Dashboard
-              </h1>
-            </div>
-            
-            <div className="flex flex-col space-y-3">
-              {/* Search always visible on mobile */}
-              <SearchBar 
-                nodes={dependencyData.nodes} 
-                onSearchResult={handleSearch}
-                selectedNodeId={searchedNodeId}
-                ref={searchBarRef}
-              />
-              
-              {/* DateRangePicker always visible on mobile */}
-              <DateRangePicker 
-                onChange={handleDateRangeChange} 
-                selectedPreset={dateRange.preset}
-              />
-            </div>
-          </div>
+  // Get all filtered companies for news feed
+  const getFilteredCompaniesForNews = (): Company[] => {
+    if (!searchedNodeId) {
+      // If no search/filter is applied, return all companies
+      return [...defenseCompanies, ...potentialCompanies, ...materialCompanies];
+    }
+    
+    // Get the tickers of nodes in the filtered network
+    const filteredTickers = new Set(filteredDependencyData.nodes.map(node => node.ticker));
+    
+    // Combine all companies that are in the filtered network
+    return [
+      ...defenseCompanies.filter(company => filteredTickers.has(company.ticker)),
+      ...potentialCompanies.filter(company => filteredTickers.has(company.ticker)),
+      ...materialCompanies.filter(company => filteredTickers.has(company.ticker))
+    ];
+  };
 
-          {/* Tablet/Desktop Header */}
-          <div className="hidden md:block">
-            {/* Tablet/Desktop title - hidden on tablets as title appears in tablet layout */}
-            <div className="hidden lg:flex justify-between items-center mb-4">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Defence Industry Dashboard
-              </h1>
+  // Calculate the actual content width to keep it centered
+  const contentWidth = isNewsFeedCollapsed ? '100%' : `calc(100% - ${newsFeedWidth}px)`;
+  
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)] relative">
+      {/* Main content - will remain centered */}
+      <div 
+        className="transition-all duration-300"
+        style={{ 
+          width: contentWidth,
+          margin: '0 auto',
+          paddingBottom: '2.5rem' // Same as pb-10
+        }}
+      >
+        {/* Floating filter notification for mobile */}
+        {searchedNodeId && (
+          <div className="md:hidden fixed top-0 left-0 w-full bg-blue-600 text-white z-30 px-4 py-2 flex justify-between items-center shadow-md">
+            <div className="text-sm font-medium truncate">
+              <span className="font-bold">Filtered:</span> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name || 'Company'}
             </div>
-            
-            {/* Tablet Layout - More compact, side by side */}
-            <div className="md:flex lg:hidden flex-col space-y-3">
-              <div className="flex justify-between items-center">
-                <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white pr-4">
+            <button 
+              onClick={clearFilters}
+              className="ml-2 bg-white text-blue-600 px-2 py-1 rounded text-xs font-bold"
+            >
+              Clear Filter
+            </button>
+          </div>
+        )}
+        
+        <header className={`bg-white dark:bg-gray-800 shadow-md sticky ${searchedNodeId ? 'md:top-0 top-10' : 'top-0'} z-20`}>
+          <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+            {/* Mobile Header */}
+            <div className="md:hidden">
+              <div className="flex items-center justify-between mb-3">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                   Defence Dashboard
                 </h1>
-                <div className="w-64">
+              </div>
+              
+              <div className="flex flex-col space-y-3">
+                {/* Search always visible on mobile */}
+                <SearchBar 
+                  nodes={dependencyData.nodes} 
+                  onSearchResult={handleSearch}
+                  selectedNodeId={searchedNodeId}
+                  ref={searchBarRef}
+                />
+                
+                {/* DateRangePicker always visible on mobile */}
+                <DateRangePicker 
+                  onChange={handleDateRangeChange} 
+                  selectedPreset={dateRange.preset}
+                />
+              </div>
+            </div>
+
+            {/* Tablet/Desktop Header */}
+            <div className="hidden md:block">
+              {/* Tablet/Desktop title - hidden on tablets as title appears in tablet layout */}
+              <div className="hidden lg:flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Defence Industry Dashboard
+                </h1>
+              </div>
+              
+              {/* Tablet Layout - More compact, side by side */}
+              <div className="md:flex lg:hidden flex-col space-y-3">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white pr-4">
+                    Defence Dashboard
+                  </h1>
+                  <div className="w-64">
+                    <SearchBar 
+                      nodes={dependencyData.nodes} 
+                      onSearchResult={handleSearch}
+                      selectedNodeId={searchedNodeId}
+                      ref={searchBarRef}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <DateRangePicker 
+                    onChange={handleDateRangeChange} 
+                    selectedPreset={dateRange.preset}
+                  />
+                </div>
+              </div>
+              
+              {/* Desktop Layout - DatePicker & Search on same line */}
+              <div className="hidden lg:flex justify-between items-center">
+                <div className="flex-grow mr-4">
+                  <DateRangePicker 
+                    onChange={handleDateRangeChange} 
+                    selectedPreset={dateRange.preset}
+                  />
+                </div>
+                <div className="w-72">
                   <SearchBar 
                     nodes={dependencyData.nodes} 
                     onSearchResult={handleSearch}
@@ -548,358 +642,356 @@ function HomeContent() {
                   />
                 </div>
               </div>
-              <div>
-                <DateRangePicker 
-                  onChange={handleDateRangeChange} 
-                  selectedPreset={dateRange.preset}
-                />
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4">
+          {/* Network Graph - Always Visible */}
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 transition-all duration-300">
+            <div className="flex flex-wrap justify-between items-center mb-2">
+              <h2 className="text-lg sm:text-xl font-bold pr-2">Defence Industry Network</h2>
+              <div className="flex space-x-2">
+                {searchedNodeId && (
+                  <button 
+                    onClick={clearFilters}
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded text-xs sm:text-sm"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+                <button 
+                  onClick={() => setNetworkCollapsed(!networkCollapsed)}
+                  className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs sm:text-sm"
+                >
+                  {networkCollapsed ? 'Expand' : 'Collapse'}
+                </button>
               </div>
             </div>
             
-            {/* Desktop Layout - DatePicker & Search on same line */}
-            <div className="hidden lg:flex justify-between items-center">
-              <div className="flex-grow mr-4">
-                <DateRangePicker 
-                  onChange={handleDateRangeChange} 
-                  selectedPreset={dateRange.preset}
-                />
-              </div>
-              <div className="w-72">
-                <SearchBar 
-                  nodes={dependencyData.nodes} 
-                  onSearchResult={handleSearch}
-                  selectedNodeId={searchedNodeId}
-                  ref={searchBarRef}
-                />
-              </div>
-            </div>
+            {!networkCollapsed && (
+              <>
+                <div className="flex flex-col md:flex-row justify-between items-start mb-4">
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+                    This interactive network visualizes the dependencies between defense manufacturers, suppliers, 
+                    and material providers. <strong className="hidden sm:inline">Click on any node to view detailed company information below.</strong>
+                    <strong className="inline sm:hidden">Tap any node for details.</strong>
+                  </p>
+                  {searchedNodeId && (
+                    <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-xs sm:text-sm flex flex-wrap items-center relative">
+                      <span>
+                        Filtered: {upstreamLevels} level{upstreamLevels > 1 ? 's' : ''} up, {downstreamLevels} level{downstreamLevels > 1 ? 's' : ''} down
+                      </span>
+                      <div className="flex items-center ml-2">
+                        <button 
+                          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                          className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full"
+                          title="Filter Settings"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
+                        <NetworkFilterSettings 
+                          isOpen={isSettingsOpen}
+                          onClose={() => setIsSettingsOpen(false)}
+                          upstreamLevels={upstreamLevels}
+                          downstreamLevels={downstreamLevels}
+                          onSettingsChange={handleSettingsChange}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className={`transition-all duration-300 ${networkCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
+                  <DependencyGraph 
+                    data={filteredDependencyData} 
+                    dateRange={dateRange} 
+                    onNodeClick={handleNodeClick}
+                    highlightedNode={highlightedCompany}
+                    height={graphHeight}
+                  />
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4">
-        {/* Network Graph - Always Visible */}
-        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 transition-all duration-300">
-          <div className="flex flex-wrap justify-between items-center mb-2">
-            <h2 className="text-lg sm:text-xl font-bold pr-2">Defence Industry Network</h2>
-            <div className="flex space-x-2">
-              {searchedNodeId && (
+          {/* Filter message for tablets and desktop */}
+          {searchedNodeId && (
+            <div className="hidden md:block mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm text-blue-800 dark:text-blue-200 shadow">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <span>
+                    <strong>Filtered Network:</strong> Showing only companies connected to 
+                    <span className="font-semibold"> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name}</span>
+                  </span>
+                </div>
                 <button 
                   onClick={clearFilters}
-                  className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded text-xs sm:text-sm"
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm ml-4 flex-shrink-0 transition-colors"
                 >
                   Clear Filter
                 </button>
-              )}
-              <button 
-                onClick={() => setNetworkCollapsed(!networkCollapsed)}
-                className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs sm:text-sm"
-              >
-                {networkCollapsed ? 'Expand' : 'Collapse'}
-              </button>
+              </div>
             </div>
-          </div>
-          
-          {!networkCollapsed && (
-            <>
-              <div className="flex flex-col md:flex-row justify-between items-start mb-4">
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                  This interactive network visualizes the dependencies between defense manufacturers, suppliers, 
-                  and material providers. <strong className="hidden sm:inline">Click on any node to view detailed company information below.</strong>
-                  <strong className="inline sm:hidden">Tap any node for details.</strong>
-                </p>
-                {searchedNodeId && (
-                  <div className="mt-2 md:mt-0 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-xs sm:text-sm flex flex-wrap items-center relative">
-                    <span>
-                      Filtered: {upstreamLevels} level{upstreamLevels > 1 ? 's' : ''} up, {downstreamLevels} level{downstreamLevels > 1 ? 's' : ''} down
-                    </span>
-                    <div className="flex items-center ml-2">
-                      <button 
-                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full"
-                        title="Filter Settings"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </button>
-                      <NetworkFilterSettings 
-                        isOpen={isSettingsOpen}
-                        onClose={() => setIsSettingsOpen(false)}
-                        upstreamLevels={upstreamLevels}
-                        downstreamLevels={downstreamLevels}
-                        onSettingsChange={handleSettingsChange}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className={`transition-all duration-300 ${networkCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
-                <DependencyGraph 
-                  data={filteredDependencyData} 
-                  dateRange={dateRange} 
-                  onNodeClick={handleNodeClick}
-                  highlightedNode={highlightedCompany}
-                  height={graphHeight}
-                />
-              </div>
-            </>
           )}
-        </div>
 
-        {/* Filter message for tablets and desktop */}
-        {searchedNodeId && (
-          <div className="hidden md:block mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md text-sm text-blue-800 dark:text-blue-200 shadow">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                <span>
-                  <strong>Filtered Network:</strong> Showing only companies connected to 
-                  <span className="font-semibold"> {dependencyData.nodes.find(n => n.id === searchedNodeId)?.name}</span>
-                </span>
-              </div>
-              <button 
-                onClick={clearFilters}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm ml-4 flex-shrink-0 transition-colors"
+          {/* Companies section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            {/* Tabs - Below Network Graph (Desktop only) */}
+            <div className="hidden md:flex flex-wrap border-b overflow-x-auto sticky top-0 bg-white dark:bg-gray-800 z-10">
+              <button
+                className={`py-3 px-4 font-medium text-sm ${
+                  activeTab === 'defense'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => handleTabChange('defense')}
               >
-                Clear Filter
+                Defense Companies
+                {searchedNodeId && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                    {getFilteredCompanies(defenseCompanies).length}
+                  </span>
+                )}
+              </button>
+              <button
+                className={`py-3 px-4 font-medium text-sm ${
+                  activeTab === 'potential'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => handleTabChange('potential')}
+              >
+                Potential Defense Companies
+                {searchedNodeId && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                    {getFilteredCompanies(potentialCompanies).length}
+                  </span>
+                )}
+              </button>
+              <button
+                className={`py-3 px-4 font-medium text-sm ${
+                  activeTab === 'materials'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => handleTabChange('materials')}
+              >
+                Crucial Materials
+                {searchedNodeId && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                    {Object.values(materialCompaniesByCategory).flat().filter(company => 
+                      filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                    ).length}
+                  </span>
+                )}
               </button>
             </div>
-          </div>
-        )}
+            
+            {/* Mobile Tab Navigation */}
+            <div className="md:hidden mt-2 mb-4 px-4">
+              <div className="flex border-b overflow-x-auto pb-1 whitespace-nowrap">
+                <button
+                  className={`py-2 px-4 font-medium text-sm ${
+                    activeTab === 'defense'
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => handleTabChange('defense')}
+                >
+                  Defense
+                  {searchedNodeId && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                      {getFilteredCompanies(defenseCompanies).length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  className={`py-2 px-4 font-medium text-sm ${
+                    activeTab === 'potential'
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => handleTabChange('potential')}
+                >
+                  Potential
+                  {searchedNodeId && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                      {getFilteredCompanies(potentialCompanies).length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  className={`py-2 px-4 font-medium text-sm ${
+                    activeTab === 'materials'
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => handleTabChange('materials')}
+                >
+                  Materials
+                  {searchedNodeId && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                      {Object.values(materialCompaniesByCategory).flat().filter(company => 
+                        filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                      ).length}
+                    </span>
+                  )}
+                </button>
+              </div>
+              
+              <h2 className="text-lg font-semibold pt-2">
+                {activeTab === 'defense' && 'Defense Companies'}
+                {activeTab === 'potential' && 'Potential Defense Companies'}
+                {activeTab === 'materials' && 'Crucial Materials'}
+                {searchedNodeId && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                    {activeTab === 'defense' && getFilteredCompanies(defenseCompanies).length}
+                    {activeTab === 'potential' && getFilteredCompanies(potentialCompanies).length}
+                    {activeTab === 'materials' && Object.values(materialCompaniesByCategory).flat().filter(company => 
+                      filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                    ).length}
+                  </span>
+                )}
+              </h2>
+            </div>
 
-        {/* Tabs - Below Network Graph (Desktop only) */}
-        <div className="hidden md:flex flex-wrap border-b mb-6 overflow-x-auto">
-          <button
-            className={`py-2 px-4 font-medium text-sm ${
-              activeTab === 'defense'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => handleTabChange('defense')}
-          >
-            Defense Companies
-            {searchedNodeId && (
-              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                {getFilteredCompanies(defenseCompanies).length}
-              </span>
-            )}
-          </button>
-          <button
-            className={`py-2 px-4 font-medium text-sm ${
-              activeTab === 'potential'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => handleTabChange('potential')}
-          >
-            Potential Defense Companies
-            {searchedNodeId && (
-              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                {getFilteredCompanies(potentialCompanies).length}
-              </span>
-            )}
-          </button>
-          <button
-            className={`py-2 px-4 font-medium text-sm ${
-              activeTab === 'materials'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => handleTabChange('materials')}
-          >
-            Crucial Materials
-            {searchedNodeId && (
-              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                {Object.values(materialCompaniesByCategory).flat().filter(company => 
-                  filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
-                ).length}
-              </span>
-            )}
-          </button>
-        </div>
-        
-        {/* Mobile Tab Navigation */}
-        <div className="md:hidden mt-2 mb-4">
-          <div className="flex border-b overflow-x-auto pb-1 whitespace-nowrap">
-            <button
-              className={`py-2 px-4 font-medium text-sm ${
-                activeTab === 'defense'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => handleTabChange('defense')}
-            >
-              Defense
-              {searchedNodeId && (
-                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                  {getFilteredCompanies(defenseCompanies).length}
-                </span>
+            {/* Scrollable company section */}
+            <div className="p-4 overflow-y-auto max-h-[calc(100vh-320px)]">
+              {/* Loading state */}
+              {isLoading && (
+                <div className="py-20 flex flex-col items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Loading company data...</p>
+                </div>
               )}
-            </button>
-            <button
-              className={`py-2 px-4 font-medium text-sm ${
-                activeTab === 'potential'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => handleTabChange('potential')}
-            >
-              Potential
-              {searchedNodeId && (
-                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                  {getFilteredCompanies(potentialCompanies).length}
-                </span>
-              )}
-            </button>
-            <button
-              className={`py-2 px-4 font-medium text-sm ${
-                activeTab === 'materials'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => handleTabChange('materials')}
-            >
-              Materials
-              {searchedNodeId && (
-                <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                  {Object.values(materialCompaniesByCategory).flat().filter(company => 
-                    filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
-                  ).length}
-                </span>
-              )}
-            </button>
-          </div>
-          
-          <h2 className="text-lg font-semibold pt-2">
-            {activeTab === 'defense' && 'Defense Companies'}
-            {activeTab === 'potential' && 'Potential Defense Companies'}
-            {activeTab === 'materials' && 'Crucial Materials'}
-            {searchedNodeId && (
-              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                {activeTab === 'defense' && getFilteredCompanies(defenseCompanies).length}
-                {activeTab === 'potential' && getFilteredCompanies(potentialCompanies).length}
-                {activeTab === 'materials' && Object.values(materialCompaniesByCategory).flat().filter(company => 
-                  filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
-                ).length}
-              </span>
-            )}
-          </h2>
-        </div>
 
-        {/* Loading state */}
-        {isLoading && (
-          <div className="py-20 flex flex-col items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading company data...</p>
-          </div>
-        )}
-
-        {/* Companies Grid for Defense and Potential tabs */}
-        {!isLoading && activeTab === 'defense' && (
-          <div ref={defenseRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {defenseCompanies.length === 0 ? (
-              <div className="col-span-3 py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">No defense companies found. Please check database connection.</p>
-              </div>
-            ) : getFilteredCompanies(defenseCompanies).length === 0 && searchedNodeId ? (
-              <div className="col-span-3 py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">
-                  No defense companies in the current filtered network view.
-                </p>
-              </div>
-            ) : (
-              getFilteredCompanies(defenseCompanies).map((company) => (
-                <CompanyCard
-                  key={company.ticker}
-                  company={company}
-                  dateRange={dateRange}
-                  highlighted={company.ticker === highlightedCompany}
-                />
-              ))
-            )}
-          </div>
-        )}
-        
-        {!isLoading && activeTab === 'potential' && (
-          <div ref={potentialRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {potentialCompanies.length === 0 ? (
-              <div className="col-span-3 py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">No potential defense companies found. Please check database connection.</p>
-              </div>
-            ) : getFilteredCompanies(potentialCompanies).length === 0 && searchedNodeId ? (
-              <div className="col-span-3 py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">
-                  No potential defense companies in the current filtered network view.
-                </p>
-              </div>
-            ) : (
-              getFilteredCompanies(potentialCompanies).map((company) => (
-                <CompanyCard
-                  key={company.ticker}
-                  company={company}
-                  dateRange={dateRange}
-                  highlighted={company.ticker === highlightedCompany}
-                />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Materials Companies with Category Separators */}
-        {!isLoading && activeTab === 'materials' && (
-          <div ref={materialsRef}>
-            {Object.keys(materialCompaniesByCategory).length === 0 ? (
-              <div className="py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">No material companies found. Please check database connection.</p>
-              </div>
-            ) : Object.values(materialCompaniesByCategory).flat().filter(company => 
-                filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
-              ).length === 0 && searchedNodeId ? (
-              <div className="py-10 text-center">
-                <p className="text-gray-600 dark:text-gray-400">
-                  No material companies in the current filtered network view.
-                </p>
-              </div>
-            ) : (
-              Object.entries(materialCompaniesByCategory).map(([category, companies]) => {
-                const filteredCompanies = getFilteredCompanies(companies);
-                // Skip categories with no companies after filtering
-                if (filteredCompanies.length === 0 && searchedNodeId) return null;
-                
-                return (
-                  <div key={category} className="mb-10">
-                    <h2 className="text-xl font-bold mb-4 pb-2 border-b">
-                      {materialCategoryNames[category as MaterialCategory]}
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredCompanies.map((company) => (
-                        <CompanyCard
-                          key={company.ticker}
-                          company={company}
-                          dateRange={dateRange}
-                          highlighted={company.ticker === highlightedCompany}
-                        />
-                      ))}
+              {/* Companies Grid for Defense and Potential tabs */}
+              {!isLoading && activeTab === 'defense' && (
+                <div ref={defenseRef} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {defenseCompanies.length === 0 ? (
+                    <div className="col-span-3 py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">No defense companies found. Please check database connection.</p>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </main>
+                  ) : getFilteredCompanies(defenseCompanies).length === 0 && searchedNodeId ? (
+                    <div className="col-span-3 py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        No defense companies in the current filtered network view.
+                      </p>
+                    </div>
+                  ) : (
+                    getFilteredCompanies(defenseCompanies).map((company) => (
+                      <CompanyCard
+                        key={company.ticker}
+                        company={company}
+                        dateRange={dateRange}
+                        highlighted={company.ticker === highlightedCompany}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+              
+              {!isLoading && activeTab === 'potential' && (
+                <div ref={potentialRef} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {potentialCompanies.length === 0 ? (
+                    <div className="col-span-3 py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">No potential defense companies found. Please check database connection.</p>
+                    </div>
+                  ) : getFilteredCompanies(potentialCompanies).length === 0 && searchedNodeId ? (
+                    <div className="col-span-3 py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        No potential defense companies in the current filtered network view.
+                      </p>
+                    </div>
+                  ) : (
+                    getFilteredCompanies(potentialCompanies).map((company) => (
+                      <CompanyCard
+                        key={company.ticker}
+                        company={company}
+                        dateRange={dateRange}
+                        highlighted={company.ticker === highlightedCompany}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
 
-      <footer className="mt-12 py-6 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
-            Defence Industry Dashboard - Stock data powered by Yahoo Finance
-          </p>
-        </div>
-      </footer>
+              {/* Materials Companies with Category Separators */}
+              {!isLoading && activeTab === 'materials' && (
+                <div ref={materialsRef}>
+                  {Object.keys(materialCompaniesByCategory).length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">No material companies found. Please check database connection.</p>
+                    </div>
+                  ) : Object.values(materialCompaniesByCategory).flat().filter(company => 
+                      filteredDependencyData.nodes.some(node => node.ticker === company.ticker)
+                    ).length === 0 && searchedNodeId ? (
+                    <div className="py-10 text-center">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        No material companies in the current filtered network view.
+                      </p>
+                    </div>
+                  ) : (
+                    Object.entries(materialCompaniesByCategory).map(([category, companies]) => {
+                      const filteredCompanies = getFilteredCompanies(companies);
+                      // Skip categories with no companies after filtering
+                      if (filteredCompanies.length === 0 && searchedNodeId) return null;
+                      
+                      return (
+                        <div key={category} className="mb-10">
+                          <h2 className="text-xl font-bold mb-4 pb-2 border-b">
+                            {materialCategoryNames[category as MaterialCategory]}
+                          </h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {filteredCompanies.map((company) => (
+                              <CompanyCard
+                                key={company.ticker}
+                                company={company}
+                                dateRange={dateRange}
+                                highlighted={company.ticker === highlightedCompany}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        <footer className="mt-12 py-6 bg-white dark:bg-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+              Defence Industry Dashboard - Stock data powered by Yahoo Finance
+            </p>
+          </div>
+        </footer>
+      </div>
+
+      {/* News Feed - Fixed position panel on the right */}
+      <div 
+        className="fixed top-0 right-0 h-full shadow-lg transition-all duration-300 z-30"
+        style={{ 
+          width: isNewsFeedCollapsed ? '48px' : `${newsFeedWidth}px` 
+        }}
+      >
+        <NewsFeed 
+          companies={getFilteredCompaniesForNews()} 
+          dateRange={dateRange}
+          searchedNodeId={searchedNodeId}
+          isCollapsed={isNewsFeedCollapsed}
+          onToggleCollapse={toggleNewsFeed}
+        />
+      </div>
     </div>
   );
 }
