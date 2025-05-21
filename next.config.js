@@ -5,7 +5,7 @@ const nextConfig = {
   basePath: '',
   // Allow deployment to Vercel
   images: {
-    domains: ['vercel.app'],
+    domains: ['vercel.app', 'www.livemint.com'],
   },
   // Disable TypeScript strict mode for build
   typescript: {
@@ -17,4 +17,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

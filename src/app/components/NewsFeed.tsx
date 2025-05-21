@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { getNewsArticles, NewsArticle } from '../services/newsService';
 import { Company, DateRange } from '../types';
 
-import { Image } from 'next/image';
-
 interface NewsFeedProps {
   companies: Company[];
   dateRange: DateRange;
@@ -209,10 +207,14 @@ export default function NewsFeed({
                   {article.urlToImage && (
                     <div className="mb-3">
                       <div className="w-full h-32 sm:h-48 relative">
-                        <Image 
-                          src={article.urlToImage} 
-                          alt={article.title} 
+                        <img
+                          src={article.urlToImage}
+                          alt={article.title}
                           className="w-full h-32 sm:h-48 object-cover rounded-md"
+                          width={640}
+                          height={360}
+                          loading="lazy"
+                          style={{ objectFit: 'cover', borderRadius: '0.375rem' }}
                         />
                       </div>
                     </div>
