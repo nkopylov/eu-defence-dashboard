@@ -75,7 +75,7 @@ export default function NetworkFilterSettings({
             <div className="flex items-center">
               <input
                 type="range"
-                min="1"
+                min="0"
                 max="5"
                 value={localUpstream}
                 onChange={(e) => setLocalUpstream(parseInt(e.target.value))}
@@ -92,7 +92,7 @@ export default function NetworkFilterSettings({
             <div className="flex items-center">
               <input
                 type="range"
-                min="1"
+                min="0"
                 max="5"
                 value={localDownstream}
                 onChange={(e) => setLocalDownstream(parseInt(e.target.value))}
@@ -135,7 +135,7 @@ export default function NetworkFilterSettings({
         <div className="flex items-center">
           <input
             type="range"
-            min="1"
+            min="0"
             max="5"
             value={localUpstream}
             onChange={(e) => setLocalUpstream(parseInt(e.target.value))}
@@ -152,7 +152,7 @@ export default function NetworkFilterSettings({
         <div className="flex items-center">
           <input
             type="range"
-            min="1"
+            min="0"
             max="5"
             value={localDownstream}
             onChange={(e) => setLocalDownstream(parseInt(e.target.value))}
