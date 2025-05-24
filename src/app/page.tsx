@@ -207,6 +207,11 @@ function HomeContent() {
     }
   };
 
+  // New callback function for the filter button in CompanyCard
+  const handleFilterByCompany = (companyTicker: string) => {
+    handleSearch(companyTicker, true); // true to scroll to the company
+  };
+
   // Toggle news feed collapse
   const toggleNewsFeed = () => {
     setIsNewsFeedCollapsed(!isNewsFeedCollapsed);
@@ -884,6 +889,7 @@ function HomeContent() {
                         company={company}
                         dateRange={dateRange}
                         highlighted={company.ticker === highlightedCompany}
+                        onFilterByCompany={handleFilterByCompany}
                       />
                     ))
                   )}
@@ -909,6 +915,7 @@ function HomeContent() {
                         company={company}
                         dateRange={dateRange}
                         highlighted={company.ticker === highlightedCompany}
+                        onFilterByCompany={handleFilterByCompany}
                       />
                     ))
                   )}
@@ -948,6 +955,7 @@ function HomeContent() {
                                 company={company}
                                 dateRange={dateRange}
                                 highlighted={company.ticker === highlightedCompany}
+                                onFilterByCompany={handleFilterByCompany}
                               />
                             ))}
                           </div>
