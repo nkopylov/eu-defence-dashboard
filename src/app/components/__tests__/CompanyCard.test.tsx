@@ -101,4 +101,93 @@ describe('CompanyCard', () => {
     expect(mockOnFilterByCompany).toHaveBeenCalledTimes(1);
     expect(mockOnFilterByCompany).toHaveBeenCalledWith(mockCompany.ticker);
   });
+
+  test('company information tooltip functionality and interaction with filter button visibility', async () => {
+    render(
+      <CompanyCard
+        company={mockCompany}
+        dateRange={mockDateRange}
+        onFilterByCompany={mockOnFilterByCompany} // Though not used in this test, it's a required prop
+      />
+    );
+
+    const h3Element = screen.getByText((content, element) => 
+      element?.tagName.toLowerCase() === 'h3' && content.startsWith(mockCompany.name)
+    );
+    const filterButton = screen.getByLabelText(`Filter by ${mockCompany.name}`);
+
+    // 1. Initial State: Assert company info tooltip is not visible
+    // Tooltip content includes "Country:" and "Products:"
+    expect(screen.queryByText(`Country: ${mockCompany.country}`)).not.toBeInTheDocument();
+    expect(screen.queryByText(`Products: ${mockCompany.products}`)).not.toBeInTheDocument();
+
+    // 2. Simulate mouseEnter on h3 element
+    fireEvent.mouseEnter(h3Element);
+
+    // Assert company info tooltip is visible
+    expect(await screen.findByText(`Country: ${mockCompany.country}`)).toBeVisible();
+    expect(screen.getByText(`Products: ${mockCompany.products}`)).toBeVisible();
+
+    // Assert filter button also becomes "visible" (group-hover:opacity-100)
+    // because hovering h3 also means its parent 'group' is hovered.
+    expect(filterButton).toHaveClass('group-hover:opacity-100');
+    expect(filterButton).not.toHaveClass('opacity-0');
+
+
+    // 3. Simulate mouseLeave from h3 element
+    fireEvent.mouseLeave(h3Element);
+
+    // Assert company info tooltip is hidden
+    // Need to use queryBy because findBy would fail if not found, waitFor will also fail.
+    // We expect it to be gone, so queryBy is appropriate.
+    // Await for potential debounce or animation if there were any, though not in this case.
+    await waitFor(() => {
+      expect(screen.queryByText(`Country: ${mockCompany.country}`)).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText(`Products: ${mockCompany.products}`)).not.toBeInTheDocument();
+    
+    // Assert filter button REMAINS "visible" if the mouse is still conceptually within the group area.
+    // The `fireEvent.mouseLeave(h3Element)` does not automatically mean the parent `groupElement` is also left.
+    // The filter button's visibility is tied to the `groupElement`'s hover state.
+    // To test this properly, the `groupElement` needs to be explicitly hovered.
+    // The previous test ('filter button functionality') already covers:
+    //    fireEvent.mouseEnter(groupElement) -> expect(filterButton).toHaveClass('group-hover:opacity-100');
+    // So, this part of combined behavior is implicitly covered if that test passes.
+    // Here, after leaving h3, the filter button's class 'group-hover:opacity-100' would persist
+    // if the group's hover state was what triggered it and that state hasn't changed.
+    // Since `fireEvent.mouseEnter(h3Element)` implies the group is hovered, this class should remain.
+    expect(filterButton).toHaveClass('group-hover:opacity-100');
+    expect(filterButton).not.toHaveClass('opacity-0');
+
+
+    // 4. To be absolutely sure about the filter button remaining visible when moving from h3 to group:
+    // Explicitly hover group, then h3, then leave h3 but not group.
+    const groupElement = h3Element.parentElement;
+    if (!groupElement) throw new Error("Could not find group element");
+
+    // Hover group (filter button shows)
+    fireEvent.mouseEnter(groupElement);
+    expect(filterButton).toHaveClass('group-hover:opacity-100');
+    expect(screen.queryByText(`Country: ${mockCompany.country}`)).not.toBeInTheDocument(); // Info tooltip not yet shown
+
+    // Then hover h3 (info tooltip shows, filter button still shown)
+    fireEvent.mouseEnter(h3Element);
+    expect(await screen.findByText(`Country: ${mockCompany.country}`)).toBeVisible();
+    expect(filterButton).toHaveClass('group-hover:opacity-100');
+
+    // Then leave h3 (info tooltip hides, filter button should remain if group is still hovered)
+    fireEvent.mouseLeave(h3Element);
+    await waitFor(() => {
+      expect(screen.queryByText(`Country: ${mockCompany.country}`)).not.toBeInTheDocument();
+    });
+    // Since groupElement is still considered hovered (mouseEnter was called on it and no mouseLeave yet),
+    // the button should remain visible.
+    expect(filterButton).toHaveClass('group-hover:opacity-100');
+    expect(filterButton).not.toHaveClass('opacity-0');
+
+    // Leave group (filter button hides)
+    fireEvent.mouseLeave(groupElement);
+    expect(filterButton).not.toHaveClass('group-hover:opacity-100'); // This might fail if opacity-0 is simply added back
+    expect(filterButton).toHaveClass('opacity-0'); // More precise: it should revert to opacity-0
+  });
 });
