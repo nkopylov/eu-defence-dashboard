@@ -180,15 +180,23 @@ function HomeContent() {
   };
 
   // Update handleSearch to use the custom levels and update URL
-  const handleSearch = (nodeId: string | null, shouldScroll: boolean = true) => {
+  const handleSearch = (
+    nodeId: string | null, 
+    shouldScroll: boolean = true,
+    filterUpstream?: number,
+    filterDownstream?: number
+  ) => {
     setSearchedNodeId(nodeId);
+
+    const up = filterUpstream !== undefined ? filterUpstream : upstreamLevels;
+    const down = filterDownstream !== undefined ? filterDownstream : downstreamLevels;
     
-    // Update URL with search parameter
-    updateUrlParams(nodeId, upstreamLevels, downstreamLevels);
+    // Update URL with search parameter using the determined levels
+    updateUrlParams(nodeId, up, down);
     
     if (nodeId) {
-      // Filter the network data based on the searched node using custom levels
-      const filtered = filterNetworkByNode(dependencyData, nodeId, upstreamLevels, downstreamLevels);
+      // Filter the network data based on the searched node using determined levels
+      const filtered = filterNetworkByNode(dependencyData, nodeId, up, down);
       setFilteredDependencyData(filtered);
       
       // Also highlight the node
@@ -204,6 +212,29 @@ function HomeContent() {
       // Reset to full network when search is cleared
       setFilteredDependencyData(dependencyData);
       setHighlightedCompany(null);
+    }
+  };
+
+  // New callback function for the filter button in CompanyCard
+  const handleFilterByCompany = (companyTicker: string) => {
+    // Convert the raw ticker to the formatted nodeId
+    // (e.g., "RNO.PA" -> "rno-pa")
+    const formattedNodeId = companyTicker.toLowerCase().replace(/\./g, '-');
+    
+    // Find the node in dependencyData to ensure it's valid and to use its exact ID
+    const targetNode = dependencyData.nodes.find(node => node.id === formattedNodeId);
+    
+    if (targetNode) {
+      // For CompanyCard clicks, use 0 for upstream and downstream levels
+      handleSearch(targetNode.id, true, 0, 0); 
+    } else {
+      console.error(
+        `Filter by company: Node with formatted ID '${formattedNodeId}' (derived from ticker '${companyTicker}') not found in dependencyData.nodes. Current nodes:`, 
+        dependencyData.nodes.map(n => n.id).join(', ')
+      );
+      // Optionally, still try to search with the formatted ID if direct find fails,
+      // but it's better if data is consistent. For now, just log error.
+      // handleSearch(formattedNodeId, true); 
     }
   };
 
@@ -884,6 +915,7 @@ function HomeContent() {
                         company={company}
                         dateRange={dateRange}
                         highlighted={company.ticker === highlightedCompany}
+                        onFilterByCompany={handleFilterByCompany}
                       />
                     ))
                   )}
@@ -909,6 +941,7 @@ function HomeContent() {
                         company={company}
                         dateRange={dateRange}
                         highlighted={company.ticker === highlightedCompany}
+                        onFilterByCompany={handleFilterByCompany}
                       />
                     ))
                   )}
@@ -948,6 +981,7 @@ function HomeContent() {
                                 company={company}
                                 dateRange={dateRange}
                                 highlighted={company.ticker === highlightedCompany}
+                                onFilterByCompany={handleFilterByCompany}
                               />
                             ))}
                           </div>
